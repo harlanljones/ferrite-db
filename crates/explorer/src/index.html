@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ferrite DB Explorer</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --line:#262b36; --fg:#e6e9ef; --dim:#8a93a5; --acc:#4f8cff; }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, sans-serif; margin:0; padding:24px; }
+  h1 { font-size:18px; margin:0 0 16px; } h2 { font-size:14px; margin:0 0 10px; color:var(--acc); text-transform:uppercase; letter-spacing:.08em; }
+  .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); max-width:1400px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  label { display:block; margin:8px 0 2px; color:var(--dim); font-size:12px; }
+  input, select { width:100%; background:#0d1016; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:6px 8px; }
+  button { margin-top:12px; width:100%; background:var(--acc); border:0; color:white; padding:8px; border-radius:6px; cursor:pointer; font-weight:600; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--dim); }
+  table { width:100%; border-collapse:collapse; margin-top:8px; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--dim); font-weight:500; }
+  .kv { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed var(--line); }
+  .kv span:first-child { color:var(--dim); }
+  .mono { font-family:ui-monospace, monospace; }
+  #error { color:#ff7b72; min-height:18px; margin:8px 0; }
+</style>
+</head>
+<body>
+<h1>Ferrite DB Explorer <span style="color:var(--dim);font-weight:400;font-size:12px">localhost demo · embedded ANN search</span></h1>
+<div id="error"></div>
+
+<div class="grid">
+  <div class="card" id="ingest-card">
+    <h2>Dataset &amp; Index</h2>
+    <label>rows</label><input id="rows" type="number" value="20000" min="100" max="200000">
+    <label>dimension</label><input id="dimension" type="number" value="64" min="8" max="1024">
+    <label>categories</label><input id="num_categories" type="number" value="50" min="1">
+    <label>seed (determinism)</label><input id="seed" type="number" value="42">
+    <label>index family</label>
+    <select id="family"><option value="hnsw">IVF-HNSW-Flat</option><option value="pq">IVF-PQ</option></select>
+    <button onclick="ingest()">Generate + Ingest + Build</button>
+    <button class="ghost" onclick="reindex()">Rebuild index</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Query vs Exact Oracle</h2>
+    <label>query # (held-out set)</label><input id="query_index" type="number" value="0" min="0">
+    <label>top_k</label><input id="top_k" type="number" value="10" min="1" max="1000">
+    <label>probes override (blank = calibrated path)</label><input id="probes" placeholder="auto">
+    <label>ef_search override</label><input id="ef_search" placeholder="auto">
+    <button onclick="runQuery()">Search</button>
+    <div id="recall"></div>
+    <table id="results"><thead><tr><th>#</th><th>id</th><th>distance</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Benchmark</h2>
+    <label>passes over held-out queries</label><input id="passes" type="number" value="3" min="1" max="20">
+    <button onclick="runBench()">Run benchmark</button>
+    <div id="bench"></div>
+    <h2 style="margin-top:18px">Configuration comparison</h2>
+    <button class="ghost" onclick="compareConfigs()">Sweep probes=1 vs probes=4</button>
+    <table id="compare"><thead><tr><th>config</th><th>p50 µs</th><th>p99 µs</th><th>recall@k</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const err = m => $("error").textContent = m;
+const j = async (url, body) => {
+  const r = await fetch(url, body ? {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)} : undefined);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+function spec() {
+  return { num_vectors:+$("rows").value, dimension:+$("dimension").value,
+           num_categories:+$("num_categories").value, seed:+$("seed").value, family:$("family").value };
+}
+async function ingest() {
+  try { $("status").innerHTML = "generating + ingesting…"; renderStatus(await j("/api/ingest", spec())); err(""); }
+  catch (e) { err(e.message); }
+}
+async function reindex() {
+  try { await j("/api/reindex", {}); renderStatus(await j("/api/status")); } catch (e) { err(e.message); }
+}
+function renderStatus(s) {
+  $("status").innerHTML =
+    `<div class="kv"><span>rows</span><span class="mono">${s.rows}</span></div>` +
+    `<div class="kv"><span>active / sealed segments</span><span class="mono">${s.active_rows} / ${s.sealed_segments}</span></div>` +
+    `<div class="kv"><span>indexes</span><span class="mono">${s.indexes.length ? s.indexes.join(", ") : "—"}</span></div>` +
+    `<div class="kv"><span>family / dim / seed</span><span class="mono">${s.family} · ${s.dimension} · ${s.seed}</span></div>` +
+    `<div class="kv"><span>ingest ms / build ms</span><span class="mono">${s.last_ingest_ms} / ${s.last_build_ms}</span></div>`;
+}
+async function runQuery() {
+  try {
+    const o = await j("/api/query", { query_index:+$("query_index").value, top_k:+$("top_k").value,
+      probes:$("probes").value === "" ? null : +$("probes").value,
+      ef_search:$("ef_search").value === "" ? null : +$("ef_search").value });
+    $("recall").innerHTML =
+      `<div class="kv"><span>total latency</span><span class="mono">${o.total_us} µs</span></div>` +
+      `<div class="kv"><span>recall@${o.hits.length} vs exact</span><span class="mono">${(o.recall_at_k*100).toFixed(1)}%</span></div>`;
+    const tb = $("results").tBodies[0]; tb.innerHTML = "";
+    o.hits.forEach((hit, i) => {
+      const inExact = o.exact_ids.includes(hit.id);
+      tb.insertAdjacentHTML("beforeend",
+        `<tr><td>${i+1}</td><td class="mono">${hit.id}${inExact ? " ✓" : ""}</td><td class="mono">${hit.distance.toFixed(6)}</td></tr>`);
+    });
+    err("");
+  } catch (e) { err(e.message); }
+}
+async function runBench() {
+  try {
+    const b = await j("/api/bench", { passes:+$("passes").value, top_k:+$("top_k").value,
+      probes:$("probes").value === "" ? null : +$("probes").value,
+      ef_search:$("ef_search").value === "" ? null : +$("ef_search").value });
+    $("bench").innerHTML =
+      ["queries","p50_us","p99_us","mean_us","qps","recall_at_k"].map(k =>
+        `<div class="kv"><span>${k}</span><span class="mono">${typeof b[k]==="number"?b[k].toFixed(b[k]>100?0:4):b[k]}</span></div>`).join("") +
+      `<div class="kv"><span>peak_rss_mb</span><span class="mono">${(b.peak_rss_bytes/1e6).toFixed(1)}</span></div>`;
+    err("");
+  } catch (e) { err(e.message); }
+}
+async function compareConfigs() {
+  try {
+    const tb = $("compare").tBodies[0]; tb.innerHTML = "measuring…";
+    tb.innerHTML = "";
+    for (const probes of [1, 4]) {
+      const b = await j("/api/bench", { passes:+$("passes").value, top_k:+$("top_k").value, probes,
+        ef_search:$("ef_search").value === "" ? null : +$("ef_search").value });
+      tb.insertAdjacentHTML("beforeend",
+        `<tr><td class="mono">probes=${probes}</td><td class="mono">${b.p50_us.toFixed(0)}</td><td class="mono">${b.p99_us.toFixed(0)}</td><td class="mono">${(b.recall_at_k*100).toFixed(1)}%</td></tr>`);
+    }
+    err("");
+  } catch (e) { err(e.message); }
+}
+</script>
+</body>
+</html>

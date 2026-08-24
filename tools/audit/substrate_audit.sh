@@ -10,6 +10,10 @@ found=0
 while IFS= read -r -d '' file; do
   rel="${file#"$ROOT"/}"
   [ "$rel" = "$SEAM" ] && continue
+  # The explorer demo binary (HJ-252, rescoped to localhost) is a host
+  # application: it may own its own async runtime like any downstream
+  # embedder. Ferrite containment itself is unchanged.
+  case "$rel" in crates/explorer/*) continue ;; esac
   # Match Rust import paths and qualified type uses only; prose mentions of
   # "LanceDB" in docs/comments are fine and must not trip this audit.
   if grep -nE '(^use |[^[:alnum:]_])(lancedb|arrow_array|arrow_schema|arrow_cast|tokio|futures)::' "$file"; then
@@ -22,6 +26,7 @@ done < <(find "$ROOT/crates" -name '*.rs' -not -path '*/target/*' -print0)
 for manifest in "$ROOT"/crates/*/Cargo.toml; do
   rel="${manifest#"$ROOT"/}"
   [ "$rel" = "crates/ferrite-db/Cargo.toml" ] && continue
+  case "$rel" in crates/explorer/Cargo.toml) continue ;; esac
   if grep -nE '^(lancedb|tokio|futures|arrow)[[:space:]]*=' "$manifest"; then
     echo "SUBSTRATE LEAK: $rel declares a substrate-only dependency"
     found=1
