@@ -69,10 +69,23 @@ Python/C bindings in v1; snapshot reads in v1; string-parsed filters; cross-Tabl
 | U1 | Allocator default (mimalloc vs jemalloc), shipped as compile-time feature flag chosen by benchmark — never API surface | allocation strategy moves tail latency; must be evidence-chosen | G4 / FDB-070 |
 | U2 | Filtered-recall gate values for selectivity tiers | needed to convert report-only tiers into enforceable gates | G2 / FDB-022 |
 | U3 | LanceDB (+ Arrow) version pinning strategy | upstream churn is risk R1; pinning policy bounds it | G-Lance / FDB-030 |
-| U4 | Final crate naming/layout shape | fixes module paths behind every ownership scope below | G1 / FDB-002 |
-| U5 | Whether `Busy` applies to writes under single-writer contention or only to search admission (ADR 0007 scopes searches) | insert-path signatures freeze at FDB-013; a blocking API owes callers a defined answer | G1 |
-| U6 | MSRV policy and semver compatibility commitment for the public API | manifest metadata and API discipline depend on both | G1 |
-| U7 | Versioning/migration story for Ferrite-owned Segment sidecar formats | on-disk compatibility across releases is an embedded-library promise | decided in FDB-012 design, ratified at G1 |
+
+**Resolved at G1 (held 2026-08-23, with FDB-002):**
+
+- **U4 crate layout**: root virtual workspace, single member `crates/ferrite-db`, ten concern
+  modules (`errors`, `table`, `storage`, `write_path`, `concurrency`, `search`,
+  `index_substrate`, `compaction`, `admission`, `observability`).
+- **U5 `Busy` scope**: search admission only; writers block on the writer lock, never return
+  `Busy` (clarified in ADR 0007).
+- **U6 MSRV/semver**: MSRV 1.97; until 1.0, minors may break, patches compatible (recorded in
+  AGENTS.md §5).
+- **U7 sidecar migration**: `.fseg` version field + reserved bytes; readers reject any other
+  version eagerly; migration via Compaction rewrite (ADR 0008).
+- **§13-4 string columns**: declared, stored, retrievable — not filterable in v1.
+- **§13-1 delete-of-unknown-id**: succeed-and-ignore.
+- **§13-3 SearchOptions shape**: `{ top_k: u32 (default 10, max 1_000), probes: Option<u32>,
+  ef_search: Option<u32> }`.
+- **§13-6 publication channel**: private registry for now; revisit crates.io at 1.0.
 
 Benchmark environment spec — hardware/OS class, caller-concurrency level, top-k, warmup and
 query-count methodology, cache-state control, reproducibility variance bound: resolved at a
@@ -154,8 +167,12 @@ Order matches the ratified architecture and two discipline rules:
 ## 9. Work items
 
 Format: dependencies · suggested role · exclusive ownership scope · deliverable · validation ·
-exit criterion. Ownership scopes use concern names (§ AGENTS.md 4) pending layout ratification
-at G1; after G1 they map to concrete paths and this section is updated.
+exit criterion. Layout ratified at G1 (2026-08-23): ownership scopes are concrete paths under
+`crates/ferrite-db/src/` — errors→`errors.rs`, Table management→`table.rs`, storage→
+`storage.rs`, write path→`write_path.rs`, concurrency→`concurrency.rs`, search+predicates→
+`search.rs`, index substrate→`index_substrate.rs`, lifecycle/Compaction→`compaction.rs`,
+admission→`admission.rs`, observability→`observability.rs`. CI owns pipeline files; corpus
+tools, harness, and the audit/test tree own their future directories.
 
 ### Wave 0 — bootstrap (strictly serial)
 
@@ -477,7 +494,7 @@ re-run the harness for any change touching write/search/index modules before mer
 
 | Gate | When | Decides |
 |------|------|---------|
-| G1 | with FDB-002 | final crate naming/layout (U4); ownership scopes remapped to concrete path globs (mandatory); Tombstone type assigned to Storage; U5–U7; §13 items 1, 3, 4, 6 |
+| G1 | with FDB-002 | ✓ held 2026-08-23: layout ratified (U4); scopes remapped to paths; Tombstone type → Storage (already honored by FDB-012); U5–U7 and §13 items 1/3/4/6 decided (outcomes in §4) |
 | G2-entry | before FDB-020 starts | benchmark environment spec: hardware/OS class, caller-concurrency level, top-k, warmup/query-count methodology, cache-state control, reproducibility variance bound; peak-RSS target row |
 | G2 | after FDB-022 | accept baselines into §5 against the G2-entry spec; set filtered-recall gate values (U2); confirm ceilings enforceable in CI |
 | G-Lance | after the FDB-004 memo, with FDB-030 | LanceDB/Arrow version pinning strategy (U3); disposition of any failed spike capability |
@@ -486,15 +503,15 @@ re-run the harness for any change touching write/search/index modules before mer
 
 ## 13. Open questions (escalated, not silently resolved)
 
-1. Delete-of-an-unknown-id: succeed-and-ignore or dedicated error? The taxonomy has no
-   NotFound variant, hinting ignore — decided at G1 (before FDB-016 freezes its signature).
+1. Delete-of-an-unknown-id: ~~succeed-and-ignore or dedicated error?~~ **Resolved at G1**:
+   succeed-and-ignore (the taxonomy deliberately has no NotFound variant).
 2. Exact Compaction trigger quantity: "max(1% of Table rows, 100k)" is read here as
    accumulated changed rows since last Compaction; confirm interpretation at FDB-040 design.
-3. SearchOptions shape: default/max k, Probe-count and ef_search ranges are unspecified —
-   decided at G1 (needed by FDB-032).
-4. Whether string columns are declare/store/retrieve-but-unfilterable (assumed reading of
-   "no string filters") or excluded entirely — decided at G1 (before FDB-011).
+3. SearchOptions shape: ~~unspecified~~ **Resolved at G1**: `{ top_k: u32 (default 10,
+   max 1_000), probes: Option<u32>, ef_search: Option<u32> }` — FDB-032 builds to this.
+4. String columns: ~~declare/store/retrieve-but-unfilterable or excluded?~~ **Resolved at
+   G1**: declared, stored, retrievable — not filterable in v1 (the assumed reading held).
 5. SIFT1M acquisition/vendor policy for the sanity run (ADR 0006 mandates it, sourcing
    undefined) — resolve by FDB-021.
-6. Publication channel for the crate (crates.io vs private registry) — affects FDB-002
-   manifest metadata; raise at G1.
+6. Publication channel: ~~crates.io vs private registry~~ **Resolved at G1**: private
+   registry for now; revisit crates.io at 1.0.

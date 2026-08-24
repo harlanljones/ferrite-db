@@ -52,8 +52,9 @@ non-goal.
 
 ## 4. Architectural ownership boundaries
 
-The final crate/module layout is an open roadmap decision (see ROADMAP.md, decision gate G1),
-but the **concern boundaries below are fixed**. Each concern has exactly one owning component;
+Crate layout was ratified at G1: a root virtual workspace with the single member crate
+`crates/ferrite-db`, one module per concern below. The **concern boundaries are fixed**. Each
+concern has exactly one owning component;
 if you touch a concern outside its owner's scope, stop and renegotiate.
 
 - **Table management** — Table lifecycle (create/open/drop), Metadata Schema declaration,
@@ -89,6 +90,8 @@ if you touch a concern outside its owner's scope, stop and renegotiate.
 - Git is **initialized, but commits belong to humans**: this workspace's policy denies
   `git commit` to agents. Stage your changes (`git add`) and report; never claim a commit
   exists unless you observed it being made.
+- **MSRV is 1.97** (stable at project start). Until the first 1.0, minor releases may contain
+  breaking changes; patch releases stay compatible (U6, decided at G1).
 
 These four commands are the standing quality gate, first verified on the FDB-002 scaffold:
 
