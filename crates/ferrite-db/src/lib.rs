@@ -11,6 +11,18 @@
 
 #![forbid(unsafe_code)]
 
+/// U1/G4 (ROADMAP FDB-070): allocator selection as compile-time features.
+/// With neither set, the system allocator is inherited. If BOTH are set
+/// (e.g. under `--all-features`), mimalloc takes precedence by the guards
+/// below — deterministic, but treat it as a misconfiguration.
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(all(feature = "jemalloc", not(feature = "mimalloc")))]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 pub mod admission;
 pub mod compaction;
 pub mod concurrency;

@@ -12,8 +12,23 @@ name = "ferrite_db"
 # Optional observability (ROADMAP FDB-060). Disabled by default so the shipped
 # library carries zero tracing cost; enable only when instrumenting.
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
+# Allocator choice (U1/G4, ROADMAP FDB-070): compile-time, never API surface.
+# Contract: enable at most ONE per build (if both are enabled, mimalloc
+# takes precedence); default is the system allocator.
+# The chosen allocator becomes the process-global allocator of any binary
+# linking ferrite-db with the feature enabled.
+mimalloc = ["dep:mimalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
 
 [dependencies]
 rayon = "1.10"
+mimalloc = { version = "0.1", optional = true }
+tikv-jemallocator = { version = "0.6", optional = true }
+# Index substrate (ADR 0002): consumed ONLY by src/index_substrate.rs; the
+# grep audit tools/audit/substrate_audit.sh enforces that containment.
+# Exact version pin is the G-Lance/U3 decision recorded with FDB-030.
+lancedb = "=0.37.1"
+tokio = { version = "1.48", default-features = false, features = ["rt-multi-thread"] }
+futures = { version = "0.3", default-features = false, features = ["std"] }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }

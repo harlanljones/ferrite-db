@@ -1,0 +1,22 @@
+{
+"format_version": 1,
+"tool": "fdb070-sweep",
+"allocator": "jemalloc",
+"fixture": {"corpus_dir": "/tmp/opencode/fdb022/fixtures", "rows": 100000, "dimension": 512, "queries_per_pass": 200, "passes": 2, "metric": "Cosine"},
+"configs": [
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 1, "ef_search": 16}, "p50_ms": 0.972, "p99_ms": 2.739, "recall_at_k": 0.1310},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 1, "ef_search": 64}, "p50_ms": 1.456, "p99_ms": 2.382, "recall_at_k": 0.2905},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 1, "ef_search": 128}, "p50_ms": 1.703, "p99_ms": 2.885, "recall_at_k": 0.4190},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 1, "ef_search": 256}, "p50_ms": 2.508, "p99_ms": 4.292, "recall_at_k": 0.5660},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 2, "ef_search": 16}, "p50_ms": 0.780, "p99_ms": 1.159, "recall_at_k": 0.1315},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 2, "ef_search": 64}, "p50_ms": 1.241, "p99_ms": 2.059, "recall_at_k": 0.2910},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 2, "ef_search": 128}, "p50_ms": 1.624, "p99_ms": 2.781, "recall_at_k": 0.4195},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 4, "ef_search": 16}, "p50_ms": 0.838, "p99_ms": 1.236, "recall_at_k": 0.1315},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 4, "ef_search": 64}, "p50_ms": 1.337, "p99_ms": 1.970, "recall_at_k": 0.2910},
+{"family": "IvfHnswFlat(partitions=4,ef_c=64)", "knobs": {"top_k": 10, "probes": 4, "ef_search": 256}, "p50_ms": 4.142, "p99_ms": 8.772, "recall_at_k": 0.5665},
+{"family": "IvfPq(partitions=4,sub=32)", "knobs": {"top_k": 10, "probes": 1, "ef_search": null}, "p50_ms": 3.366, "p99_ms": 7.622, "recall_at_k": 0.0560},
+{"family": "IvfPq(partitions=4,sub=32)", "knobs": {"top_k": 10, "probes": 2, "ef_search": null}, "p50_ms": 2.506, "p99_ms": 4.094, "recall_at_k": 0.0560},
+{"family": "IvfPq(partitions=4,sub=32)", "knobs": {"top_k": 10, "probes": 4, "ef_search": null}, "p50_ms": 2.373, "p99_ms": 3.720, "recall_at_k": 0.0560}
+],
+"peak_rss_bytes": 1047261184
+}

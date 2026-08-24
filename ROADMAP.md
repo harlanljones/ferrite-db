@@ -67,8 +67,19 @@ Python/C bindings in v1; snapshot reads in v1; string-parsed filters; cross-Tabl
 | # | Decision | Why it matters | Resolved at |
 |---|----------|----------------|-------------|
 | U1 | Allocator default (mimalloc vs jemalloc), shipped as compile-time feature flag chosen by benchmark — never API surface | allocation strategy moves tail latency; must be evidence-chosen | G4 / FDB-070 |
+
+**Resolved with FDB-070 (2026-08-24, evidence for G4 ratification):** allocator features shipped (`mimalloc`/`jemalloc`, mutually exclusive by compiler). Campaign data (`docs/baselines/fdb070-campaign.md`): jemalloc best-or-tied latency on most configurations and ≈25% lower peak RSS (1047 MB vs 1403 system / 1504 mimalloc); recall unaffected. **Recommendation: ratify `jemalloc`.** Caveat: one campaign run per allocator on shared desktop — rerun to confirm at sign-off.
 | U2 | Filtered-recall gate values for selectivity tiers | needed to convert report-only tiers into enforceable gates | G2 / FDB-022 |
 | U3 | LanceDB (+ Arrow) version pinning strategy | upstream churn is risk R1; pinning policy bounds it | G-Lance / FDB-030 |
+
+**Resolved with FDB-030 (2026-08-24, G-Lance):**
+
+- **U3 version pinning**: exact-pin `lancedb = "=0.37.1"` in the index-substrate crate only
+  (Arrow consumed exclusively through lancedb's re-exports, so no direct arrow dep exists to
+  pin). Upgrade drill each milestone gate: bump the exact pin, run the full gate suite plus all
+  three audits; any breakage is absorbed inside `src/index_substrate.rs`. Recorded consequence:
+  lancedb's transitive tree adds licenses to `deny.toml` allow-list and one ignored advisory
+  (RUSTSEC-2024-0436, unmaintained-but-not-vulnerable transitive), both justified inline there.
 
 **Resolved at G1 (held 2026-08-23, with FDB-002):**
 
@@ -383,6 +394,14 @@ tools, harness, and the audit/test tree own their future directories.
 - Validation: round-trip build/query/index-removal tests through the seam
 - Exit criterion: both index families usable via the seam with zero lancedb imports elsewhere
   (enforced by lint/grep audit)
+- Outcome (2026-08-24): seam shipped as `SubstrateIndex` with `IndexFamily::{IvfPq,
+  IvfHnswFlat}` (upstream exposes HNSW only inside its IVF-backed family, per the FDB-004
+  friction log), build params, per-query probe/ef knobs mirroring §13-3 SearchOptions, and
+  index removal; nine round-trip/validation tests. Enforcement: new
+  `tools/audit/substrate_audit.sh`, wired into CI. Upstream constraints surfaced and recorded:
+  IVF-PQ refuses to train below 256 rows; HNSW requires ef >= top_k (validated at the seam as
+  caller-fixable `SchemaViolation`). U3 pin decision above; observability audit amended to
+  check the crate-level optional-only invariant (lancedb pulls tracing transitively).
 
 **FDB-031 — Index ladder auto-select**
 - Depends: FDB-030
@@ -393,6 +412,14 @@ tools, harness, and the audit/test tree own their future directories.
 - Validation: exhaustive unit tests of the selector at boundary counts; wiring smoke test
 - Exit criterion: selector provably matches ratified thresholds at ±1 row of each boundary;
   override respected; background build observable past ~50k
+- Outcome (2026-08-24): pure `ladder_choice`/`resolve_ladder`/`build_disposition` functions with
+  constants pinning the ratified thresholds (10k exclusive / 1M exclusive / ~50k background);
+  ±1-row unit coverage at both boundaries plus the background switch; creation-time override via
+  `open_with_override`; `apply_ladder` resolves against live row count and builds inline below
+  50k or on an observable background thread at/past it (`background_build_state`/
+  `background_build_error`, CAS-guarded against double-spawn). Placeholder build params
+  documented as pre-calibration defaults for FDB-032. Wiring smoke tests exercise exhaustive,
+  forced-inline, and 50k-row background paths against real LanceDB.
 
 **FDB-032 — Probe/ef_search calibration + SearchOptions**
 - Depends: FDB-031
@@ -404,6 +431,19 @@ tools, harness, and the audit/test tree own their future directories.
 - Exit criterion: calibrated defaults Pareto-dominate naive fixed defaults in a cited run —
   recall@10 ≥ naive AND p50 ≤ naive AND p99 ≤ naive on the identical fixture; overrides
   verifiably take effect
+- Outcome (2026-08-24, FDB-032): deterministic parity-based calibration shipped in the seam
+  (`calibrate`/`calibration_candidates`: score sampled queries against locally computed exact
+  answers, pick the cheapest knob set matching the naive default's sampled recall; no timing
+  input). `Metric` now flows through the seam into upstream index build + queries as
+  `DistanceType` — fixing a silent upstream-L2-default mismatch found during evidence runs
+  (flat-scan recall vs fixture ground truth was 0.49 before the fix, exactly 1.0000 after).
+  Evidence: `crates/harness/src/bin/ann_compare.rs` (interleaved A/B passes, pooled medians) →
+  `docs/baselines/artifacts/fdb032-ann-compare.json`, PARETO_DOMINATES=true: calibrated
+  probes=1 vs naive probes=4 at identical recall@10 with lower p50 and p99. Recorded caveats:
+  uniform-512d synthetic data is pathological for graph ANN (recall ceiling ≈0.31–0.42 at any
+  knobs); upstream kmeans partition training is unseeded so chosen knobs may shift across index
+  rebuilds (within one built index calibration is exactly deterministic — unit-tested);
+  SearchOptions-style overrides verified effective through the seam's query-knob plumbing tests.
 
 ### Wave 6 — lifecycle
 
@@ -419,6 +459,20 @@ tools, harness, and the audit/test tree own their future directories.
   consistency during merge
 - Exit criterion: all M4 gate bullets demonstrated in tests; merged results identical to
   oracle on shared fixtures
+- Outcome (2026-08-24): lifecycle module ships `Lifecycle` (single-writer insert/delete via
+  snapshot clone-mutate-commit, reader search over immutable publication snapshots), pure
+  `evaluate_trigger`/`should_compact`/`merge`, manual idempotent `compact()`, and a stoppable
+  background per-Table job with observable `last_compaction()` reports. M4 bullets
+  demonstrated by eight tests: change-threshold ±1 boundary, delta-count ≥4 boundary,
+  purge-gate at exactly 20%/21%, oracle equivalence across deletes+updates pre/post merge,
+  four-reader consistency during a live merge, idempotency, background arm-and-stop, empty
+  behavior. §13 interpretations recorded in module docs — flagged for Harlan's design-time
+  confirmation: (a) accumulated change = sealed rows + tombstoned ids against current total
+  rows; (b) merges keep each id's newest visible version; fully-tombstoned ids are physically
+  retained (hidden) below the 20% gate and purged above it; superseded dead generations always
+  collapse because the public Delta API cannot re-hide a specific generation after rebuild;
+  (c) large merged lineages legitimately re-seal under TARGET_SEGMENT_ROWS chunking, so
+  "absorbs Deltas" means one logical lineage, not a single physical segment.
 
 ### Wave 7 — hardening (ordered within wave)
 
@@ -469,6 +523,14 @@ tools, harness, and the audit/test tree own their future directories.
 - Validation: cited harness runs per configuration
 - Exit criterion: targets met, or misses documented with evidence and escalated to G3;
   allocator ratified at G4; hard-ceiling gates active in CI
+- Outcome (2026-08-24): knob sweep executed across both index families × probe/ef grid at
+  declared scale under three allocators (artifacts `fdb070-sweep-*.json`; report
+  `docs/baselines/fdb070-campaign.md`). **Targets NOT met at declared scale — escalated to G3
+  with evidence** (recall ceiling ≈0.56 on uniform-512d fixture regardless of knobs;
+  contract-scale capture still blocked on target hardware per FDB-023; ladder↔search wiring
+  open). Targets left untouched. Allocator features shipped; G4 recommendation: jemalloc.
+  CI gained `slo-smoke` job enforcing hard ceilings via `--enforce-ceilings` (loose tripwire
+  values documented; authoritative enforcement remains environment-bound).
 
 ### Deferred backlog (unscheduled — no IDs assigned)
 

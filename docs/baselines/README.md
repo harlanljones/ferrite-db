@@ -54,3 +54,13 @@ done
 ```
 
 Fixtures are not committed; corpus-gen regeneration is byte-identical by construction (FDB-020).
+
+## FDB-032 — calibrated vs naive fixed knobs (ANN evidence run)
+
+`artifacts/fdb032-ann-compare.json` records the M3 comparison on the identical 100k × 512-d
+fixture: HNSW (partitions=4, ef_construction=64), 500 queries, 5 interleaved A/B passes,
+pooled medians. Verdict **PARETO_DOMINATES=true** — calibration selected probes=1/ef=64
+against the naive probes=4/ef=64 default at identical recall@10 with lower p50 and p99.
+Runner: `cargo run --release -p harness --bin ann_compare -- --corpus-dir <fixtures> --rows
+100000 --queries 500`. Caveats recorded in ROADMAP §9 FDB-032 (pathological uniform data;
+upstream unseeded kmeans ⇒ knob choice can vary across index rebuilds).

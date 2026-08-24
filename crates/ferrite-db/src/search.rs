@@ -349,7 +349,7 @@ fn compare_values(left: &MetadataValue, right: &MetadataValue) -> Option<Orderin
     }
 }
 
-fn distance(metric: Metric, query: &[f32], vector: &[f32]) -> f32 {
+pub(crate) fn distance(metric: Metric, query: &[f32], vector: &[f32]) -> f32 {
     match metric {
         Metric::Cosine => {
             let query_norm = query.iter().map(|value| value * value).sum::<f32>().sqrt();

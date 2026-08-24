@@ -35,5 +35,45 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Audit substrate containment (FDB-030)
+        run: bash tools/audit/substrate_audit.sh
+
       - name: Audit dependencies
         uses: EmbarkStudios/cargo-deny-action@v2
+
+  slo-smoke:
+    name: SLO hard-ceiling smoke (FDB-070)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust 1.97.1
+        uses: dtolnay/rust-toolchain@1.97.1
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            target
+          key: slo-smoke-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Generate smoke fixture
+        run: |
+          cargo run --release -p corpus-gen -- --out /tmp/smoke-fixtures \
+            --num-vectors 5000 --num-queries 50 --top-k 10 --dimension 512 \
+            --num-categories 100
+
+      - name: Enforce hard ceilings on exhaustive path (tripwire)
+        # Tripwire ceilings are intentionally loose for shared runners; they
+        # catch order-of-magnitude regressions. Authoritative §13 ceiling
+        # enforcement runs against recorded environments via the same flag.
+        run: |
+          cargo build --release -p harness
+          ./target/release/harness --corpus-dir /tmp/smoke-fixtures \
+            --warmup 20 --enforce-ceilings \
+            --p50-max-ms 50 --p99-max-ms 120 --recall-min 0.94 \
+            --report /tmp/smoke-report.json
+          cat /tmp/smoke-report.json >> "$GITHUB_STEP_SUMMARY"

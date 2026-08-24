@@ -1,5 +1,12 @@
 [advisories]
 version = 2
+ignore = [
+    # Transitive of lancedb -> datafusion/lance (FDB-030 pin "=0.37.1").
+    # RUSTSEC-2024-0436: `paste` archived/unmaintained — no known
+    # vulnerability; no upstream fix available at this pin. Revisit on any
+    # lancedb upgrade drill.
+    { id = "RUSTSEC-2024-0436", reason = "unmaintained transitive via lancedb; not vulnerable" },
+]
 
 [licenses]
 version = 2
@@ -7,6 +14,16 @@ allow = [
     "Apache-2.0",
     "MIT",
     "Unicode-3.0",
+    # Added with the FDB-030 substrate integration: licenses appearing in
+    # lancedb's transitive tree. All OSI-approved permissive except MPL-2.0
+    # (file-level copyleft only); none weaken ferrite-db's MIT OR Apache-2.0.
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Zlib",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MPL-2.0",
 ]
 
 [bans]

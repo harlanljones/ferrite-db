@@ -1,0 +1,9 @@
+{
+ "format_version": 1,
+ "tool": "ann-compare (FDB-032)",
+ "method": {"passes": 5, "queries_per_pass": 500, "interleaved": true},
+ "fixture": {"corpus_dir": "/tmp/opencode/fdb022/fixtures", "rows": 100000, "dimension": 512, "metric": "Cosine", "family": "IvfHnswFlat(partitions=4, ef_construction=64)"},
+ "naive_fixed": {"knobs": {"top_k": 10, "probes": 4, "ef_search": 64}, "p50_ms": 1.776, "p99_ms": 4.241, "mean_ms": 1.871, "recall_at_k": 0.3094},
+ "calibrated": {"knobs": {"top_k": 10, "probes": 1, "ef_search": 64}, "p50_ms": 1.749, "p99_ms": 3.944, "mean_ms": 1.845, "recall_at_k": 0.3094},
+ "pareto_dominates": true
+}
