@@ -349,7 +349,10 @@ fn compare_values(left: &MetadataValue, right: &MetadataValue) -> Option<Orderin
     }
 }
 
-pub(crate) fn distance(metric: Metric, query: &[f32], vector: &[f32]) -> f32 {
+/// The pure distance function for a [`Metric`]. Exposed publicly so reduced
+/// cores (e.g. the WASM oracle in `ferrite-wasm`) can score candidates
+/// directly without going through the admission-gated [`search`] path.
+pub fn distance(metric: Metric, query: &[f32], vector: &[f32]) -> f32 {
     match metric {
         Metric::Cosine => {
             let query_norm = query.iter().map(|value| value * value).sum::<f32>().sqrt();

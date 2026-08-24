@@ -1,0 +1,19 @@
+{
+  "name": "ferrite-explorer-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Cloudflare Workers-hosted SPA driving ferrite-wasm in a Web Worker (FDB-EXP-02)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^8.2.0",
+    "wrangler": "^4.125.0"
+  }
+}

@@ -1,1 +1,9 @@
 /target
+
+# JS/web frontend (explorer-web): dependencies, build output, and local
+# Cloudflare Worker dev state. The prebuilt ferrite-wasm glue in
+# explorer-web/src/pkg is committed so `vite build` works without re-running
+# wasm-bindgen.
+explorer-web/node_modules
+explorer-web/dist
+explorer-web/.wrangler

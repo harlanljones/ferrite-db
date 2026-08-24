@@ -9,6 +9,17 @@ description = "Embedded low-latency approximate nearest-neighbor search over den
 name = "ferrite_db"
 
 [features]
+# Default build: the full native substrate (LanceDB index substrate, the
+# tokio runtime that drives it, the Rayon pool for concurrency, and the
+# futures crate). Disabled wholesale under `wasm` so the crate compiles to
+# `wasm32-unknown-unknown` without threads or the LanceDB C++ dependency.
+default = ["substrate"]
+substrate = ["dep:lancedb", "dep:tokio", "dep:rayon", "dep:futures"]
+# Reduced, threadless, in-memory core for WASM (FDB-EXP-01). Excludes the
+# LanceDB/tokio/Rayon substrate and the on-disk Segment storage; search runs
+# exhaustively over in-memory Deltas. Compaction and concurrency (background
+# threads) are absent under this feature.
+wasm = []
 # Optional observability (ROADMAP FDB-060). Disabled by default so the shipped
 # library carries zero tracing cost; enable only when instrumenting.
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
@@ -21,14 +32,11 @@ mimalloc = ["dep:mimalloc"]
 jemalloc = ["dep:tikv-jemallocator"]
 
 [dependencies]
-rayon = "1.10"
+rayon = { version = "1.10", optional = true }
 mimalloc = { version = "0.1", optional = true }
 tikv-jemallocator = { version = "0.6", optional = true }
-# Index substrate (ADR 0002): consumed ONLY by src/index_substrate.rs; the
-# grep audit tools/audit/substrate_audit.sh enforces that containment.
-# Exact version pin is the G-Lance/U3 decision recorded with FDB-030.
-lancedb = "=0.37.1"
-tokio = { version = "1.48", default-features = false, features = ["rt-multi-thread"] }
-futures = { version = "0.3", default-features = false, features = ["std"] }
+lancedb = { version = "=0.37.1", optional = true }
+tokio = { version = "1.48", default-features = false, features = ["rt-multi-thread"], optional = true }
+futures = { version = "0.3", default-features = false, features = ["std"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", optional = true }

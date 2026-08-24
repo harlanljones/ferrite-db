@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ferrite DB — Explorer (WASM)</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Ferrite DB Explorer</h1>
+        <p class="sub">
+          In-browser vector search powered by <code>ferrite-wasm</code> running in a
+          Web Worker.
+        </p>
+      </header>
+
+      <section class="panel">
+        <h2>1 · Dataset</h2>
+        <div class="grid">
+          <label>Table name
+            <input id="tableName" type="text" value="demo" />
+          </label>
+          <label>Metric
+            <select id="metric">
+              <option value="cosine">cosine</option>
+              <option value="l2">l2</option>
+              <option value="dot">dot</option>
+            </select>
+          </label>
+          <label>Dimension
+            <input id="dimension" type="number" value="8" min="1" max="4096" />
+          </label>
+        </div>
+
+        <h3>Metadata Schema</h3>
+        <p class="hint">
+          Columns must have a non-empty name (no NUL bytes), unique names, and a
+          type of <code>bool</code>, <code>i64</code>, <code>f64</code>, or
+          <code>string</code>. Leave empty for vector-only tables.
+        </p>
+        <div id="schemaList" class="schema-list"></div>
+        <button id="addColumn" type="button" class="ghost">+ Add column</button>
+        <p id="schemaStatus" class="status"></p>
+
+        <h3>Source</h3>
+        <div class="tabs">
+          <label class="tab">
+            <input type="radio" name="source" value="synthetic" checked />
+            Synthetic
+          </label>
+          <label class="tab">
+            <input type="radio" name="source" value="upload" />
+            Upload (JSON / CSV)
+          </label>
+        </div>
+
+        <div id="syntheticOpts" class="subopts">
+          <div class="grid">
+            <label>Vectors
+              <input id="count" type="number" value="2000" min="1" max="1000000" />
+            </label>
+            <label>Seed
+              <input id="seed" type="number" value="42" min="0" />
+            </label>
+            <label>Clusters
+              <input id="clusters" type="number" value="5" min="1" max="1000" />
+            </label>
+          </div>
+          <p class="hint">
+            Vectors are drawn around <code>clusters</code> random centroids using a
+            seeded PRNG. A <code>cluster</code> (i64) metadata column is auto-added
+            when the schema has an i64 column named <code>cluster</code>.
+          </p>
+        </div>
+
+        <div id="uploadOpts" class="subopts" hidden>
+          <label class="wide">
+            Dataset file
+            <input id="file" type="file" accept=".json,.csv,application/json,text/csv" />
+          </label>
+          <p class="hint">
+            JSON: an array of <code>{"id?":n,"vector":[..],"metadata"?":{col:val}}</code>.
+            CSV: header <code>id?,dim0,...,col1,...</code>.
+          </p>
+        </div>
+
+        <div class="actions">
+          <button id="createTable">Create table</button>
+          <button id="ingest">Generate &amp; Ingest</button>
+        </div>
+        <progress id="ingestBar" max="100" value="0"></progress>
+        <p id="ingestStatus" class="status"></p>
+      </section>
+
+      <section class="panel">
+        <h2>2 · Tables</h2>
+        <div class="grid">
+          <label class="wide">
+            Active table
+            <select id="activeTable"></select>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="refreshTables" class="ghost">Refresh list</button>
+        </div>
+        <p id="tablesStatus" class="status"></p>
+      </section>
+
+      <section class="panel">
+        <h2>3 · Query</h2>
+        <div class="grid">
+          <label>Top-K
+            <input id="topK" type="number" value="10" min="1" max="1000" />
+          </label>
+          <label class="wide">
+            Query vector (comma-separated; leave blank for random)
+            <input id="query" type="text" placeholder="0.1, 0.2, 0.3, ..." />
+          </label>
+        </div>
+        <div class="actions">
+          <button id="search">Search (engine)</button>
+          <button id="exact">Exact oracle</button>
+          <button id="status">Table status</button>
+        </div>
+        <p id="queryStatus" class="status"></p>
+      </section>
+
+      <section class="panel">
+        <h2>4 · Results</h2>
+        <pre id="results">—</pre>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

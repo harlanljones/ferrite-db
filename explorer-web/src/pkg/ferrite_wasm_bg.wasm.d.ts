@@ -1,0 +1,37 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_ferritedb_free: (a: number, b: number) => void;
+export const __wbg_get_searchhit_distance: (a: number) => number;
+export const __wbg_get_searchhit_id: (a: number) => bigint;
+export const __wbg_get_sessionstatus_table_count: (a: number) => number;
+export const __wbg_get_sessionstatus_vector_count: (a: number) => number;
+export const __wbg_searchhit_free: (a: number, b: number) => void;
+export const __wbg_sessionstatus_free: (a: number, b: number) => void;
+export const __wbg_set_searchhit_distance: (a: number, b: number) => void;
+export const __wbg_set_searchhit_id: (a: number, b: bigint) => void;
+export const __wbg_set_sessionstatus_table_count: (a: number, b: number) => void;
+export const __wbg_set_sessionstatus_vector_count: (a: number, b: number) => void;
+export const __wbg_tablestatus_free: (a: number, b: number) => void;
+export const ferritedb_create_table: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const ferritedb_create_table_schema: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+export const ferritedb_exact_search: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+export const ferritedb_insert_records: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
+export const ferritedb_insert_with_metadata: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => [number, number, number];
+export const ferritedb_list_tables: (a: number) => [number, number];
+export const ferritedb_new: () => number;
+export const ferritedb_search: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+export const ferritedb_status: (a: number) => number;
+export const ferritedb_table_status: (a: number, b: number, c: number) => [number, number, number];
+export const tablestatus_dimension: (a: number) => number;
+export const tablestatus_metric: (a: number) => [number, number];
+export const tablestatus_name: (a: number) => [number, number];
+export const tablestatus_vectors: (a: number) => number;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __externref_table_dealloc: (a: number) => void;
+export const __externref_table_alloc: () => number;
+export const __externref_drop_slice: (a: number, b: number) => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_start: () => void;
