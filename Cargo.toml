@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ferrite-db", "crates/corpus-gen"]
+members = ["crates/ferrite-db", "crates/corpus-gen", "crates/harness"]
 
 [workspace.package]
 version = "0.1.0"

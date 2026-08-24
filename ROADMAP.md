@@ -92,22 +92,32 @@ query-count methodology, cache-state control, reproducibility variance bound: re
 **G2-entry session held before FDB-020 starts**. Measuring first and pinning the environment
 afterwards would make the baselines meaningless and unfalsifiable. §13 items 1–4 are decided
 at G1 because they freeze Wave 1/3 signatures; item 5 by FDB-021; item 6 at G1.
+*Amendment note (2026-08-24): the session was in fact held late — with FDB-022, immediately
+before capture, and pinned the dev machine at declared reduced scale
+(`docs/baselines/ENVIRONMENT.md`). The pin-before-measure principle was preserved; only its
+timing slipped, with Harlan's approval and contract-scale re-baseline tracked as FDB-023.*
 
 ## 5. Metrics
 
-Baselines do not exist yet. `TBD` cells are filled only by FDB-022 with run artifacts attached;
-never estimated. Owners are assigned when the establishing task completes.
+Baselines were established by FDB-022 (2026-08-24) at the **declared reduced scale
+100 000 × 512-d** on the pinned dev-baseline environment, because the contract corpus cannot be
+captured on available hardware (see `docs/baselines/ENVIRONMENT.md`); re-baselining at the 10M × 512
+contract scale is tracked as FDB-023. Values below are medians of 5 reruns with run artifacts and the
+recorded reproducibility-variance bound in `docs/baselines/README.md`; owners assigned at FDB-022.
 
 | metric | baseline | target/threshold | measurement method | owner | review cadence |
 |---|---|---|---|---|---|
-| p50 search latency, unfiltered top-k | TBD (none exists; established by FDB-022) | target ≤ 1.2 ms; hard ceiling 2 ms (CI fail-gate) | FDB-021 harness percentile over its query set against the FDB-020 10M × 512-d f32 corpus | TBD (assigned at FDB-022; matters: primary latency SLO) | every merged harness run; re-baselined at each milestone gate |
-| p99 search latency, unfiltered top-k | TBD (established by FDB-022) | target ≤ 4.5 ms; hard ceiling 8 ms (CI fail-gate) | same harness as above | TBD (same assignment point; matters: tail-latency SLO) | same as above |
-| Recall@10, unfiltered | TBD (established by FDB-022) | target ≥ 96.5%; fail-floor 94% (CI fail-gate) | harness vs FDB-020 exact-search ground truth | TBD (matters: accuracy SLO) | same as above |
-| Filtered recall@10 @ selectivity 1.0 | TBD (report-only until FDB-022) | TBD pending first baseline (set at G2) | harness predicate-filtered runs via FDB-021 | TBD | report-only cadence until G2 converts to gates |
-| Filtered recall@10 @ selectivity 0.1 | TBD (report-only until FDB-022) | TBD pending first baseline (set at G2) | as above | TBD | as above |
-| Filtered recall@10 @ selectivity 0.01 | TBD (report-only until FDB-022) | TBD pending first baseline (set at G2) | as above | TBD | as above |
-| Filtered recall@10 @ selectivity 0.001 | TBD (report-only until FDB-022) | TBD pending first baseline (set at G2) | as above | TBD | as above |
-| Peak RSS under the benchmark contract | TBD (established by FDB-022) | target set at G2-entry with the environment spec — no basis to invent one today | harness captures process RSS over the standard run | TBD (matters: first-order purchase criterion for an embedded library) | every merged harness run |
+| p50 search latency, unfiltered top-k | **141.5 ms** @ declared scale (variance bound ±15%) [docs/baselines/artifacts/tier-1.0-run-*.json] | target ≤ 1.2 ms; hard ceiling 2 ms (CI fail-gate) — enforceable only against contract-scale re-baseline | FDB-021 harness percentile over its query set against the FDB-020 corpus (declared-scale capture) | performance (FDB-022); matters: primary latency SLO | every merged harness run; re-baselined at each milestone gate |
+| p99 search latency, unfiltered top-k | **279.7 ms** @ declared scale (variance bound ±35%) [same artifacts] | target ≤ 4.5 ms; hard ceiling 8 ms (CI fail-gate) — same caveat | same harness as above | performance (FDB-022); matters: tail-latency SLO | same as above |
+| Recall@10, unfiltered | **1.0000** (exact scan reproduces ground truth; variance bound: exact equality) [same artifacts] | target ≥ 96.5%; fail-floor 94% (CI fail-gate) | harness vs FDB-020 exact-search ground truth | performance (FDB-022); matters: accuracy SLO | same as above |
+| Filtered recall@10 @ selectivity 1.0 | **1.0000** (exact; report-only until G2 sets gates) | TBD pending G2 decision | harness predicate-filtered runs via FDB-021 | performance (FDB-022) | report-only cadence until G2 converts to gates |
+| Filtered recall@10 @ selectivity 0.1 | **1.0000** vs filtered oracle (exact; report-only until G2) | TBD pending first baseline (set at G2) | as above | performance (FDB-022) | as above |
+| Filtered recall@10 @ selectivity 0.01 | **1.0000** vs filtered oracle (exact; report-only until G2) | TBD pending first baseline (set at G2) | as above | performance (FDB-022) | as above |
+| Filtered recall@10 @ selectivity 0.001 | **1.0000** vs filtered oracle (exact; report-only until G2) | TBD pending first baseline (set at G2) | as above | performance (FDB-022) | as above |
+| Peak RSS under the benchmark contract | **≈ 761 MB** unfiltered pass / ≈ 481–508 MB filtered @ declared scale (variance bound ±1%) [docs/baselines/artifacts/] | target set at G2-entry with the environment spec — no basis to invent one today | harness captures process RSS over the standard run | performance (FDB-022); matters: first-order purchase criterion for an embedded library | every merged harness run |
+
+Ingest throughput (R4 monitor): median ≈ 1.15 M vectors/s at declared scale (per-tier medians
+0.97–1.17 M/s; variance bound ±50%), reported in every artifact under `ingest`.
 
 SIFT1M comparability sanity runs (secondary, never gating) are reported alongside but get no
 table row until G2 decides whether one is warranted.
@@ -337,10 +347,29 @@ tools, harness, and the audit/test tree own their future directories.
 - Deliverable: recorded baselines with environment description matching the G2-entry spec and
   run artifacts; ingest throughput reported; a numeric reproducibility-variance bound recorded
   alongside the baselines it qualifies. Known documented limitation: admission control
-  (FDB-050) is not yet in place, so baselines measure unthrottled dispatch
+  (FDB-050) is not yet in place, so baselines measure unthrottled dispatch. Resolution note
+  (2026-08-24): FDB-050 landed before capture; at the pinned caller-concurrency of 1 admission
+  never sheds, so the baselines remain effectively unthrottled — limitation now moot.
 - Validation: reruns reproduce within the recorded variance bound on the pinned environment
 - Exit criterion: §5 TBDs replaced with measured values + artifact pointers + the variance
   bound; G2 close-out convened
+- Outcome deviation (approved by Harlan 2026-08-24): captured at declared reduced scale
+  100 000 × 512-d on the dev machine (contract scale exceeds available RAM); G2-entry
+  environment pinned to that machine in `docs/baselines/ENVIRONMENT.md`; artifacts in
+  `docs/baselines/artifacts/`; variance bound per metric in `docs/baselines/README.md`
+
+**FDB-023 — Contract-scale re-baseline**
+- Depends: target benchmark hardware availability (isolated, frequency-pinned machine able to
+  hold the 10M × 512 corpus plus harness working set)
+- Suggested role: performance engineer
+- Ownership: §5 metric table baseline values (replacing FDB-022's declared-scale values)
+- Deliverable: re-capture every §5 baseline at the full 10M × 512 contract corpus on the target
+  machine using the FDB-021 harness unchanged; tighten or re-record the reproducibility-variance
+  bound under pinned-frequency isolation; refresh `docs/baselines/` artifacts
+- Validation: reruns on the target machine reproduce within the tightened bound
+- Exit criterion: §5 baseline cells carry contract-scale values with artifacts; hard-ceiling
+  gates (p50 ≤ 2 ms / p99 ≤ 8 ms / recall ≥ 94%) evaluated against contract-scale numbers for
+  G2 acceptance
 
 ### Wave 5 — index ladder (serial chain)
 
@@ -495,8 +524,8 @@ re-run the harness for any change touching write/search/index modules before mer
 | Gate | When | Decides |
 |------|------|---------|
 | G1 | with FDB-002 | ✓ held 2026-08-23: layout ratified (U4); scopes remapped to paths; Tombstone type → Storage (already honored by FDB-012); U5–U7 and §13 items 1/3/4/6 decided (outcomes in §4) |
-| G2-entry | before FDB-020 starts | benchmark environment spec: hardware/OS class, caller-concurrency level, top-k, warmup/query-count methodology, cache-state control, reproducibility variance bound; peak-RSS target row |
-| G2 | after FDB-022 | accept baselines into §5 against the G2-entry spec; set filtered-recall gate values (U2); confirm ceilings enforceable in CI |
+| G2-entry | before FDB-020 starts | benchmark environment spec: hardware/OS class, caller-concurrency level, top-k, warmup/query-count methodology, cache-state control, reproducibility variance bound; peak-RSS target row. Held late (with FDB-022, 2026-08-24): environment pinned to the dev machine at declared reduced scale — see `docs/baselines/ENVIRONMENT.md` |
+| G2 | after FDB-022 | accept baselines into §5 against the G2-entry spec; set filtered-recall gate values (U2); confirm ceilings enforceable in CI. Acceptance of hard-ceiling gates against contract scale additionally awaits FDB-023 (10M × 512 re-baseline) |
 | G-Lance | after the FDB-004 memo, with FDB-030 | LanceDB/Arrow version pinning strategy (U3); disposition of any failed spike capability |
 | G3 | after FDB-032 first results, again in FDB-070 | recall-vs-latency frontier review; ADR-amendment escalations |
 | G4 | during FDB-070 | allocator default by harness evidence only (U1) |

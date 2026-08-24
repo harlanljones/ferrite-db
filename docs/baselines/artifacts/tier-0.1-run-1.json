@@ -1,0 +1,16 @@
+{
+"format_version": 1,
+"tool": "ferrite-harness",
+"dataset": {"num_vectors": 100000, "dimension": 512, "metric": "Cosine", "top_k": 10},
+"environment": {"hardware": "Linux 7.1.8-arch1-3 x86_64", "caller_concurrency": 1, "available_parallelism": 28},
+"run": {"warmup_queries": 50, "measured_queries": 500, "selectivity": 0.100000, "predicate_categories": 100},
+"latency_ms": {"p50": 19.864843, "p99": 40.675290, "mean": 21.906529},
+"recall_at_k": 1.000000,
+"ingest": {"vectors": 100000, "seconds": 0.080908, "throughput_vectors_per_sec": 1235977.984},
+"memory_bytes": {"peak_rss": 507928576},
+"ceilings": {"p50_max_ms": 2.000000, "p99_max_ms": 8.000000, "recall_min": 0.940000},
+"ceiling_violations": [
+    "p50 19.864843 ms exceeds ceiling 2.000000 ms",
+    "p99 40.675290 ms exceeds ceiling 8.000000 ms"
+]
+}
