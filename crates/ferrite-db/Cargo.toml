@@ -1,0 +1,10 @@
+[package]
+name = "ferrite-db"
+version.workspace = true
+edition.workspace = true
+description = "Embedded low-latency approximate nearest-neighbor search over dense vectors"
+
+[lib]
+name = "ferrite_db"
+
+[dependencies]
