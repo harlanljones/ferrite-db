@@ -296,6 +296,12 @@ pub fn search(
         predicate.validate(delta.table().metadata_schema())?;
     }
 
+    // Admission control: hold one search-admission permit for the duration of
+    // the in-flight scan. This is the sole `Busy`-returning path for capacity
+    // reasons (ADR 0007); it is a single non-blocking `try_admit` with no
+    // queue (see `crate::admission`).
+    let _permit = crate::admission::global().try_admit()?;
+
     let mut results = delta
         .records()
         .filter(|record| {

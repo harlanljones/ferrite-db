@@ -1,0 +1,8 @@
+[package]
+name = "corpus-gen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Reproducible synthetic 10M x 512-d f32 corpus + exact-search ground truth for the Ferrite DB benchmark contract (ADR 0006)"
+
+[dependencies]
