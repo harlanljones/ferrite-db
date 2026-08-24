@@ -8,3 +8,4 @@ description = "Embedded low-latency approximate nearest-neighbor search over den
 name = "ferrite_db"
 
 [dependencies]
+rayon = "1.10"
