@@ -245,6 +245,12 @@ impl WritePath {
         self.delta.insert(records)
     }
 
+    /// Records Tombstones for the given ids (FDB-016 delete semantics,
+    /// surfaced for reduced cores that drive the write path directly).
+    pub fn delete(&mut self, ids: &[u64]) -> Result<()> {
+        self.delta.delete(ids)
+    }
+
     /// Returns the Delta used by immediate exhaustive search.
     pub fn delta(&self) -> &Delta {
         &self.delta

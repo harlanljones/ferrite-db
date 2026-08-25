@@ -100,7 +100,11 @@ impl Predicate {
         Self::Not(Box::new(predicate))
     }
 
-    fn validate(&self, schema: &MetadataSchema) -> Result<()> {
+    /// Validates this tree against a Metadata Schema: every referenced
+    /// column must exist and leaf literals must match declared types.
+    /// Exposed so reduced cores (e.g. the WASM exact oracle) can run the same
+    /// check the engine's [`search`] entry performs.
+    pub fn validate(&self, schema: &MetadataSchema) -> Result<()> {
         match self {
             Self::Eq { column, value }
             | Self::NotEq { column, value }
@@ -146,7 +150,10 @@ impl Predicate {
         }
     }
 
-    fn matches(&self, metadata: &BTreeMap<String, MetadataValue>) -> bool {
+    /// Evaluates this tree against one record's metadata. Exposed alongside
+    /// [`Predicate::validate`] so the WASM exact oracle filters records with
+    /// the same semantics as the engine's exhaustive scan.
+    pub fn matches(&self, metadata: &BTreeMap<String, MetadataValue>) -> bool {
         match self {
             Self::Eq { column, value } => {
                 metadata.get(column).is_some_and(|actual| actual == value)

@@ -9,6 +9,10 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Keep dev-profile artifacts small: full debuginfo across the LanceDB/
+  # DataFusion dependency stack exhausts runner disk during cold builds.
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
 
 jobs:
   quality:
@@ -17,6 +21,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Free disk space
+        # Cold debug builds of the substrate stack need more room than the
+        # runner's preinstalled toolchains leave behind.
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          sudo apt-get clean
+          df -h /
 
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler

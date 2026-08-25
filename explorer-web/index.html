@@ -12,7 +12,9 @@
         <h1>Ferrite DB Explorer</h1>
         <p class="sub">
           In-browser vector search powered by <code>ferrite-wasm</code> running in a
-          Web Worker.
+          Web Worker. Shortcuts: <kbd>/</kbd> query · <kbd>s</kbd> search ·
+          <kbd>b</kbd> benchmark · <kbd>p</kbd> project · <kbd>l</kbd> lifecycle.
+          <span id="heapChip" class="heap-chip"></span>
         </p>
       </header>
 
@@ -104,6 +106,7 @@
         </div>
         <div class="actions">
           <button id="refreshTables" class="ghost">Refresh list</button>
+          <button id="freeReload" class="ghost">Free heap &amp; reload session</button>
         </div>
         <p id="tablesStatus" class="status"></p>
       </section>
@@ -114,21 +117,151 @@
           <label>Top-K
             <input id="topK" type="number" value="10" min="1" max="1000" />
           </label>
+          <label>Probes (ANN override)
+            <input id="probes" type="number" min="1" placeholder="auto" />
+          </label>
+          <label>ef_search (HNSW override)
+            <input id="efSearch" type="number" min="1" placeholder="auto" />
+          </label>
           <label class="wide">
             Query vector (comma-separated; leave blank for random)
             <input id="query" type="text" placeholder="0.1, 0.2, 0.3, ..." />
           </label>
         </div>
-        <div class="actions">
-          <button id="search">Search (engine)</button>
-          <button id="exact">Exact oracle</button>
-          <button id="status">Table status</button>
+
+        <h3>Predicate Tree</h3>
+        <div class="grid">
+          <label>Combine rules with
+            <select id="rootOp">
+              <option value="and">AND</option>
+              <option value="or">OR</option>
+            </select>
+          </label>
+          <label class="tab">
+            <input id="negateRoot" type="checkbox" />
+            NOT whole tree
+          </label>
         </div>
+        <div id="ruleList" class="schema-list"></div>
+        <button id="addRule" type="button" class="ghost">+ Add rule</button>
+        <p id="ruleStatus" class="status"></p>
+
+        <div class="actions">
+          <button id="search">Search + recall@k</button>
+        </div>
+        <div id="phaseWaterfall" class="waterfall" hidden></div>
         <p id="queryStatus" class="status"></p>
       </section>
 
       <section class="panel">
-        <h2>4 · Results</h2>
+        <h2>4 · Benchmark</h2>
+        <div class="grid">
+          <label>Passes
+            <input id="benchPasses" type="number" value="5" min="1" max="100" />
+          </label>
+          <label>Queries / pass
+            <input id="benchQueries" type="number" value="200" min="1" max="5000" />
+          </label>
+          <label>Seed (held-out set)
+            <input id="benchSeed" type="number" value="1234" min="0" />
+          </label>
+          <label class="tab">
+            <input id="benchSweep" type="checkbox" />
+            Sweep probe/ef grid
+          </label>
+        </div>
+        <p class="hint">
+          Runs the predicate and top-K from the Query panel against a seeded
+          held-out query set. Streaming percentiles, QPS, recall distribution,
+          and a latency-vs-recall point per knob configuration.
+        </p>
+        <div class="actions">
+          <button id="runBench">Run benchmark</button>
+          <button id="exportBench" class="ghost" disabled>Export JSON</button>
+        </div>
+        <progress id="benchBar" max="100" value="0"></progress>
+        <p id="benchStatus" class="status"></p>
+
+        <div class="charts">
+          <figure>
+            <figcaption>Latency distribution (ms)</figcaption>
+            <canvas id="latencyHist" width="640" height="220"></canvas>
+          </figure>
+          <figure>
+            <figcaption>Recall@k distribution</figcaption>
+            <canvas id="recallHist" width="320" height="220"></canvas>
+          </figure>
+          <figure>
+            <figcaption>Latency vs recall (per configuration)</figcaption>
+            <canvas id="pareto" width="640" height="240"></canvas>
+          </figure>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>5 · Projection</h2>
+        <div class="grid">
+          <label>Mode
+            <select id="projMode">
+              <option value="3">3D (rotate)</option>
+              <option value="2">2D</option>
+            </select>
+          </label>
+          <label>Color by
+            <select id="projColorBy">
+              <option value="__none__">— none —</option>
+            </select>
+          </label>
+          <label>Point size
+            <input id="projSize" type="range" min="2" max="10" step="1" value="4" />
+          </label>
+        </div>
+        <div class="actions">
+          <button id="runProject">Project table</button>
+        </div>
+        <p id="projStatus" class="status"></p>
+        <div class="proj-wrap">
+          <canvas id="projCanvas"></canvas>
+          <div id="projTip" hidden></div>
+        </div>
+        <p class="hint">Drag rotates (3D) · Shift/right-drag pans · Wheel zooms · Double-click resets · Hover for details.</p>
+      </section>
+
+      <section class="panel">
+        <h2>6 · Storage lifecycle</h2>
+        <div class="grid">
+          <label>Delete ids (comma-separated)
+            <input id="deleteIds" type="text" placeholder="3, 17, 42" />
+          </label>
+          <label class="tab">
+            <input id="autoCompact" type="checkbox" />
+            Auto-compact on trigger
+          </label>
+        </div>
+        <div class="actions">
+          <button id="refreshLifecycle">Refresh snapshot</button>
+          <button id="deleteBtn" class="ghost">Delete (Tombstone)</button>
+          <button id="compactBtn">Run compact()</button>
+        </div>
+        <p id="lifecycleStatus" class="status"></p>
+        <p id="lifecycleCounters" class="counters">— no snapshot —</p>
+        <p id="purgeBadge" class="status"></p>
+        <div id="segmentChips" class="chips"></div>
+        <h3>Ratified triggers / gates (M4)</h3>
+        <ul id="triggerList" class="triggers"></ul>
+        <h3>Activity log</h3>
+        <pre id="lifecycleLog" class="log"></pre>
+        <p class="hint">
+          Snapshot reads live engine state. compact() runs a client-side
+          simulator of the ratified M4 policy: sealed Deltas merge into one
+          Segment; Tombstoned rows physically purge only while the ratio is
+          above 20% (below it they collapse to their newest hidden version).
+          New ingests reset the view to live state.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>7 · Results</h2>
         <pre id="results">—</pre>
       </section>
     </main>

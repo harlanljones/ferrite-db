@@ -21,12 +21,35 @@ export class FerriteDb {
      */
     create_table_schema(name: string, dimension: number, metric: string, col_names: string[], col_types: string[]): void;
     /**
+     * Records Tombstones for the given ids in `table_name` (FDB-016
+     * delete-as-Tombstone semantics for the reduced core). Returns the new
+     * in-memory vector count.
+     */
+    delete_records(table_name: string, ids: BigUint64Array): number;
+    /**
      * Independent brute-force oracle: scores every vector in `table_name`
      * against `query` using the Table's Metric and returns the `top_k`
      * nearest. Used for exact-match / recall validation distinct from the
      * engine's own search path.
      */
     exact_search(table_name: string, query: Float32Array, top_k: number): SearchHit[];
+    /**
+     * Exact brute-force oracle under the same predicate and knob plumbing as
+     * [`FerriteDb::search_advanced`], giving recall@k a like-for-like
+     * baseline when filters are active.
+     */
+    exact_search_advanced(table_name: string, query: Float32Array, top_k: number, predicate_json?: string | null): SearchHit[];
+    /**
+     * Snapshot of the Table's Delta layout for the storage lifecycle
+     * inspector (FDB-EXP-07): sealed Segment row/dead counts, active buffer
+     * counts, and Tombstone totals.
+     */
+    export_lifecycle(table_name: string): LifecycleExport;
+    /**
+     * Full snapshot of a Table's in-memory vectors for visualization
+     * (FDB-EXP-06): parallel ids/vectors plus per-record metadata JSON.
+     */
+    export_vectors(table_name: string): VectorExport;
     /**
      * Appends `vectors.len() / dimension` records to `table_name`. `vectors`
      * is a flat, row-major f32 array aligned with `ids` (one vector per id).
@@ -50,11 +73,26 @@ export class FerriteDb {
      */
     constructor();
     /**
+     * Per-phase execution profile of one exhaustive query (FDB-EXP-08):
+     * predicate filtering vs distance scan vs top-k ranking. The phases
+     * mirror exactly what the engine's fused [`search`] performs internally,
+     * timed here as separate passes over the same Delta for telemetry.
+     */
+    profile_search(table_name: string, query: Float32Array, top_k: number, predicate_json?: string | null): SearchProfile;
+    /**
      * Exhaustive nearest-neighbour search over `table_name`'s in-memory
      * Deltas, returning the `top_k` nearest hits. Mirrors the native engine's
      * admission-gated exhaustive `search`.
      */
     search(table_name: string, query: Float32Array, top_k: number): SearchHit[];
+    /**
+     * Engine search with full query-runner plumbing (FDB-EXP-04): dynamic
+     * `SearchOptions` overrides (`probes`, `ef_search`) and a Predicate Tree
+     * supplied as JSON (see [`parse_predicate_json`]). On the WASM reduced
+     * core the scan is exhaustive, so probe/ef knobs are carried for parity
+     * with the native substrate but do not change results.
+     */
+    search_advanced(table_name: string, query: Float32Array, top_k: number, probes?: number | null, ef_search?: number | null, predicate_json?: string | null): SearchHit[];
     /**
      * Whole-session status: how many Tables exist and how many vectors are
      * held in total.
@@ -64,6 +102,39 @@ export class FerriteDb {
      * Per-Table status: dimension, Metric, and the in-memory vector count.
      */
     table_status(table_name: string): TableStatus;
+}
+
+/**
+ * Snapshot of one Table's Delta layout for the lifecycle inspector.
+ */
+export class LifecycleExport {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Tombstoned rows in the active Delta buffer.
+     */
+    readonly active_dead: number;
+    /**
+     * Rows in the active Delta buffer.
+     */
+    readonly active_total: number;
+    /**
+     * Row count of each sealed Segment, in seal order.
+     */
+    readonly sealed_counts: Uint32Array;
+    /**
+     * Tombstoned row count within each sealed Segment.
+     */
+    readonly sealed_dead: Uint32Array;
+    /**
+     * Number of distinct Tombstoned ids.
+     */
+    readonly tombstoned_ids: number;
+    /**
+     * Total recent vectors (sealed + active).
+     */
+    readonly total_rows: number;
 }
 
 /**
@@ -81,6 +152,35 @@ export class SearchHit {
      * The matched vector identifier.
      */
     id: bigint;
+    /**
+     * The record's metadata as a JSON object string.
+     */
+    readonly metadata_json: string;
+}
+
+/**
+ * Per-phase timing breakdown of one exhaustive query (FDB-EXP-08).
+ */
+export class SearchProfile {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Predicate-filter + Tombstone-visibility pass, microseconds.
+     */
+    readonly filter_us: bigint;
+    readonly matched_rows: number;
+    /**
+     * Deterministic ranking + truncation pass, microseconds.
+     */
+    readonly rank_us: bigint;
+    readonly returned_rows: number;
+    /**
+     * Metric distance pass over surviving rows, microseconds.
+     */
+    readonly scan_us: bigint;
+    readonly scanned_rows: number;
+    readonly total_rows: number;
 }
 
 /**
@@ -125,6 +225,27 @@ export class TableStatus {
     readonly vectors: number;
 }
 
+/**
+ * Snapshot of one Table's vectors for the projection visualizer.
+ */
+export class VectorExport {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Record ids, aligned with `vectors` rows and `metadata_json`.
+     */
+    readonly ids: BigUint64Array;
+    /**
+     * Per-record metadata serialized as JSON object strings.
+     */
+    readonly metadata_json: string[];
+    /**
+     * Flat row-major f32 vector data (`ids.len() * dimension` values).
+     */
+    readonly vectors: Float32Array;
+}
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -134,26 +255,52 @@ export interface InitOutput {
     readonly __wbg_get_searchhit_id: (a: number) => bigint;
     readonly __wbg_get_sessionstatus_table_count: (a: number) => number;
     readonly __wbg_get_sessionstatus_vector_count: (a: number) => number;
+    readonly __wbg_lifecycleexport_free: (a: number, b: number) => void;
     readonly __wbg_searchhit_free: (a: number, b: number) => void;
+    readonly __wbg_searchprofile_free: (a: number, b: number) => void;
     readonly __wbg_sessionstatus_free: (a: number, b: number) => void;
     readonly __wbg_set_searchhit_distance: (a: number, b: number) => void;
     readonly __wbg_set_searchhit_id: (a: number, b: bigint) => void;
     readonly __wbg_set_sessionstatus_table_count: (a: number, b: number) => void;
     readonly __wbg_set_sessionstatus_vector_count: (a: number, b: number) => void;
     readonly __wbg_tablestatus_free: (a: number, b: number) => void;
+    readonly __wbg_vectorexport_free: (a: number, b: number) => void;
     readonly ferritedb_create_table: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly ferritedb_create_table_schema: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
+    readonly ferritedb_delete_records: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly ferritedb_exact_search: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly ferritedb_exact_search_advanced: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
+    readonly ferritedb_export_lifecycle: (a: number, b: number, c: number) => [number, number, number];
+    readonly ferritedb_export_vectors: (a: number, b: number, c: number) => [number, number, number];
     readonly ferritedb_insert_records: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly ferritedb_insert_with_metadata: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => [number, number, number];
     readonly ferritedb_list_tables: (a: number) => [number, number];
     readonly ferritedb_new: () => number;
+    readonly ferritedb_profile_search: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number];
     readonly ferritedb_search: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly ferritedb_search_advanced: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number, number];
     readonly ferritedb_status: (a: number) => number;
     readonly ferritedb_table_status: (a: number, b: number, c: number) => [number, number, number];
-    readonly tablestatus_dimension: (a: number) => number;
+    readonly lifecycleexport_active_dead: (a: number) => number;
+    readonly lifecycleexport_active_total: (a: number) => number;
+    readonly lifecycleexport_sealed_counts: (a: number) => [number, number];
+    readonly lifecycleexport_sealed_dead: (a: number) => [number, number];
+    readonly lifecycleexport_tombstoned_ids: (a: number) => number;
+    readonly lifecycleexport_total_rows: (a: number) => number;
+    readonly searchhit_metadata_json: (a: number) => [number, number];
+    readonly searchprofile_filter_us: (a: number) => bigint;
+    readonly searchprofile_matched_rows: (a: number) => number;
+    readonly searchprofile_rank_us: (a: number) => bigint;
+    readonly searchprofile_returned_rows: (a: number) => number;
+    readonly searchprofile_scan_us: (a: number) => bigint;
+    readonly searchprofile_total_rows: (a: number) => number;
     readonly tablestatus_metric: (a: number) => [number, number];
     readonly tablestatus_name: (a: number) => [number, number];
+    readonly vectorexport_ids: (a: number) => any;
+    readonly vectorexport_metadata_json: (a: number) => [number, number];
+    readonly vectorexport_vectors: (a: number) => any;
+    readonly searchprofile_scanned_rows: (a: number) => number;
+    readonly tablestatus_dimension: (a: number) => number;
     readonly tablestatus_vectors: (a: number) => number;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
