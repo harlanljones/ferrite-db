@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 # storage/concurrency concerns are excluded automatically on the `wasm32`
 # target (FDB-EXP-01). Default features are off so the `substrate` deps
 # (LanceDB, tokio, Rayon) are never pulled into the WASM build.
-ferrite-db = { path = "../ferrite-db", default-features = false }
+ferrite-db = { path = "../ferrite-db", version = "0.1.0", default-features = false }
 wasm-bindgen = "0.2"
 js-sys = "0.3"
 # Parses the JS-side Predicate Tree JSON for the query runner (FDB-EXP-04).
