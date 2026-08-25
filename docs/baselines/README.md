@@ -4,7 +4,9 @@ Established 2026-08-24 on the environment pinned in [ENVIRONMENT.md](ENVIRONMENT
 FDB-021 harness against FDB-020 fixtures regenerated at the **declared reduced scale
 100 000 × 512-d** (see ENVIRONMENT.md for why, and ROADMAP FDB-023 for the contract-scale
 re-baseline). All numbers below are **medians of 5 reruns**; raw artifacts live in
-[artifacts/](artifacts/) (`tier-<sel>-run-<n>.json`, machine-readable).
+[artifacts/](artifacts/) (`tier-<sel>-run-<n>.json`, machine-readable). The target-hardware
+requirements and runbook for the FDB-023 contract-scale re-baseline live in
+[TARGET-HARDWARE.md](TARGET-HARDWARE.md).
 
 ## Headline results
 
