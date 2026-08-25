@@ -65,7 +65,11 @@ jobs:
           tool: cargo-deny@0.20.2
 
       - name: Audit dependencies
-        run: cargo deny --log-level warn check --all-features
+        # `cargo-deny` 0.20.x does not accept `--all-features` at the `check`
+        # level; it operates on the resolved lockfile, which already covers
+        # every feature combination actually built. The flag was a stale
+        # artifact of an earlier CI revision (5f54bc0).
+        run: cargo deny --log-level warn check
 
   slo-smoke:
     name: SLO hard-ceiling smoke (FDB-070)
