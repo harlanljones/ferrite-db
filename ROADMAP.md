@@ -7,7 +7,7 @@ Precedence: ADRs > AGENTS.md > this file > individual judgment.
 ## 1. Current state (verified at planning time)
 
 - `CONTEXT.md` — canonical domain glossary (binding vocabulary).
-- `docs/adr/0001..0007` — ratified decisions.
+- `docs/adr/0001..0009` — ratified decisions.
 - `AGENTS.md`, `ROADMAP.md` — created by this planning pass.
 - **No** `Cargo.toml`, **no** source files, **no** git repository. Toolchain present:
   `cargo`/`rustc` 1.97.1.
@@ -171,7 +171,8 @@ Order matches the ratified architecture and two discipline rules:
 | ADR 0003 | immutable Segments; atomic-rename Commit; no WAL; re-ingest recovery | FDB-012, FDB-013, FDB-051 |
 | ADR 0004 | sync blocking core; library-owned Rayon pool; async facade later | FDB-015, FDB-050; deferred backlog (facade) |
 | ADR 0005 | many Tables; single writer/many readers; cross-Table queries unrepresentable | FDB-011, FDB-014, FDB-015 |
-| ADR 0006 | synthetic 10M × 512-d gate; SIFT1M sanity only | FDB-020, FDB-021, FDB-022, FDB-070 |
+| ADR 0006 | synthetic 10M × 512-d gate (determinism contract); SIFT1M sanity only | FDB-020, FDB-021, FDB-022, FDB-070 |
+| ADR 0009 | realistic-clustered accuracy corpus added; uniform corpus = determinism contract | FDB-024 |
 | ADR 0007 | semaphore ~2× cores; shed with `Busy`; never queue | FDB-050 |
 | Design decisions | dimension u32 fixed per Table; Metrics {Cosine (normalized), L2, Dot} | FDB-011, FDB-014 |
 | Design decisions | Metadata Schema {bool/i64/f64/string}; Predicate Tree {=,!=,<,<=,>,>=,IN + AND/OR/NOT}; pre-filter pushdown; no string filters v1 | FDB-011, FDB-014 |
@@ -381,6 +382,24 @@ tools, harness, and the audit/test tree own their future directories.
 - Exit criterion: §5 baseline cells carry contract-scale values with artifacts; hard-ceiling
   gates (p50 ≤ 2 ms / p99 ≤ 8 ms / recall ≥ 94%) evaluated against contract-scale numbers for
   G2 acceptance
+- Follow-up (2026-08-25, FDB-G3): re-scheduled as a **v1.1 non-blocking** item pending target
+  hardware. Authoritative hard-ceiling and recall verdicts against contract scale await this
+  and/or FDB-024; v1.0 acceptance proceeds on declared-scale + realistic-clustered evidence.
+
+**FDB-024 — Clustered-corpus generator + G3 recall re-evaluation**
+- Depends: ADR 0009 (ratified amendment to 0006, per FDB-G3), FDB-016 (load via public write
+  path), FDB-021 (re-run harness)
+- Suggested role: benchmarks engineer
+- Ownership: corpus tooling directory exclusively (co-owned with FDB-020; serialize)
+- Deliverable: reproducible generator producing the realistic-clustered 10M × 512-d f32
+  accuracy corpus plus exact-search ground truth and a versioned query set (count, distribution,
+  selectivity tiers, top-k), consumed unchanged by the FDB-021 harness (ADR 0006, ADR 0009);
+  re-run the harness and re-evaluate the G3 recall questions reported in FDB-070
+- Validation: regenerate with identical parameters and compare checksums; harness run emits a
+  machine-readable report against the clustered corpus
+- Exit criterion: byte-identical regeneration proven once; the FDB-070 recall ceiling (report-only
+  ≈ 0.56 on the uniform fixture) is re-measured on the clustered corpus; latest recall/latency
+  row recorded as evidence in §5 for G3/FDB-G3 re-check
 
 ### Wave 5 — index ladder (serial chain)
 
@@ -561,7 +580,7 @@ velocity is unknown until M2 instruments the work.
 | 1 | 003 ∥ 004 ∥ 010 ∥ 011 ∥ 012 | CI files ∥ spike dir ∥ errors ∥ table mgmt ∥ storage | modules compile independently; spike memo recorded; full suite green |
 | 2 | 013 ∥ 015 | write path ∥ concurrency | commit-under-read stress green |
 | 3 | 014 → 016 (ordered) | search/predicates ∥ (then) tombstone logic | M1 exit suite green |
-| 4 | 020 → 021 → 022 (serial) | corpus tools ∥ (then) harness ∥ (then) baselines | M2 gate; G2 convened |
+| 4 | 020 → 021 → 022 (serial); 024 parallel to 023 | corpus tools ∥ (then) harness ∥ (then) baselines; 024 shares corpus-tools ownership with 020 | M2 gate; G2 convened; G3 re-check after 024 |
 | 5 | 030 → 031 → 032 (serial) | index seam (single owner chain) | seam-isolation audit clean; M3 gate |
 | 6 | 040 alone | lifecycle | M4 gate |
 | 7 | 050 → 051 (ordered) | admission ∥ (then) audit/test tree | M5 gate |

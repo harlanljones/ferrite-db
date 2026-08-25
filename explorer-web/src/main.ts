@@ -141,6 +141,19 @@ function collectSchema(): { columns: ColumnSpec[]; error: string } {
 // Persistence
 // ---------------------------------------------------------------------------
 
+interface SavedSearch {
+  topK: number;
+  probes: number | null;
+  efSearch: number | null;
+}
+
+interface SavedBench {
+  passes: number;
+  queries: number;
+  seed: number;
+  sweep: boolean;
+}
+
 interface SavedConfig {
   metric: string;
   dimension: number;
@@ -148,6 +161,68 @@ interface SavedConfig {
   seed: number;
   clusters: number;
   schema: ColumnSpec[];
+  search?: SavedSearch;
+  bench?: SavedBench;
+}
+
+const DEFAULTS = {
+  topK: 10,
+  probes: null as number | null,
+  efSearch: null as number | null,
+  benchPasses: 5,
+  benchQueries: 200,
+  benchSeed: 1234,
+  benchSweep: false,
+} as const;
+
+const DEMO = {
+  name: "demo",
+  dimension: 8,
+  count: 2000,
+  seed: 42,
+  clusters: 5,
+  metric: "cosine",
+} as const;
+
+function readKnob(id: string): number | null {
+  const raw = el<HTMLInputElement>(id).value.trim();
+  if (raw === "") return null;
+  const n = Math.max(1, Math.floor(Number(raw)));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function writeKnob(id: string, value: number | null | undefined): void {
+  el<HTMLInputElement>(id).value = value == null ? "" : String(value);
+}
+
+function captureSearchOptions(): SavedSearch {
+  return {
+    topK: Math.max(1, Math.floor(readNumber("topK", DEFAULTS.topK))),
+    probes: readKnob("probes"),
+    efSearch: readKnob("efSearch"),
+  };
+}
+
+function applySearchOptions(s: SavedSearch): void {
+  el<HTMLInputElement>("topK").value = String(s.topK);
+  writeKnob("probes", s.probes);
+  writeKnob("efSearch", s.efSearch);
+}
+
+function captureBenchOptions(): SavedBench {
+  return {
+    passes: Math.max(1, Math.floor(readNumber("benchPasses", DEFAULTS.benchPasses))),
+    queries: Math.max(1, Math.floor(readNumber("benchQueries", DEFAULTS.benchQueries))),
+    seed: Math.max(0, Math.floor(readNumber("benchSeed", DEFAULTS.benchSeed))),
+    sweep: el<HTMLInputElement>("benchSweep").checked,
+  };
+}
+
+function applyBenchOptions(b: SavedBench): void {
+  el<HTMLInputElement>("benchPasses").value = String(b.passes);
+  el<HTMLInputElement>("benchQueries").value = String(b.queries);
+  el<HTMLInputElement>("benchSeed").value = String(b.seed);
+  el<HTMLInputElement>("benchSweep").checked = b.sweep;
 }
 
 function saveConfig(): void {
@@ -159,11 +234,30 @@ function saveConfig(): void {
     seed: readNumber("seed", 42),
     clusters: readNumber("clusters", 5),
     schema,
+    search: captureSearchOptions(),
+    bench: captureBenchOptions(),
   };
   try {
     localStorage.setItem(STORE_CONFIG, JSON.stringify(config));
   } catch {
     /* storage may be unavailable; non-fatal */
+  }
+}
+
+function persistSearchBench(): void {
+  let cur: Partial<SavedConfig> = {};
+  try {
+    const raw = localStorage.getItem(STORE_CONFIG);
+    if (raw) cur = JSON.parse(raw) as SavedConfig;
+  } catch {
+    cur = {};
+  }
+  cur.search = captureSearchOptions();
+  cur.bench = captureBenchOptions();
+  try {
+    localStorage.setItem(STORE_CONFIG, JSON.stringify(cur));
+  } catch {
+    /* non-fatal */
   }
 }
 
@@ -182,6 +276,29 @@ function loadConfig(): void {
   el<HTMLInputElement>("seed").value = String(config.seed);
   el<HTMLInputElement>("clusters").value = String(config.clusters);
   for (const col of config.schema) addColumnRow(col.name, col.type);
+  if (config.search) applySearchOptions(config.search);
+  if (config.bench) applyBenchOptions(config.bench);
+}
+
+function resetQueryDefaults(): void {
+  applySearchOptions({
+    topK: DEFAULTS.topK,
+    probes: DEFAULTS.probes,
+    efSearch: DEFAULTS.efSearch,
+  });
+  persistSearchBench();
+  setStatus("queryStatus", "search options reset to defaults", "good");
+}
+
+function resetBenchDefaults(): void {
+  applyBenchOptions({
+    passes: DEFAULTS.benchPasses,
+    queries: DEFAULTS.benchQueries,
+    seed: DEFAULTS.benchSeed,
+    sweep: DEFAULTS.benchSweep,
+  });
+  persistSearchBench();
+  setStatus("benchStatus", "benchmark options reset to defaults", "good");
 }
 
 // ---------------------------------------------------------------------------
@@ -717,9 +834,11 @@ async function runQuery(): Promise<void> {
     setStatus(
       "queryStatus",
       `${engineRes.hits.length} hits in ${engineRes.latencyMs.toFixed(2)} ms · ` +
-        `oracle ${oracleRes.latencyMs.toFixed(2)} ms · recall@${topK} = ${(recallAtK * 100).toFixed(1)}%`,
+        `oracle ${oracleRes.latencyMs.toFixed(2)} ms · recall@${topK} = ${(recallAtK * 100).toFixed(1)}% · ` +
+        `probes=${probes == null ? "auto" : probes} ef=${efSearch == null ? "auto" : efSearch}`,
       "good",
     );
+    persistSearchBench();
     setResults({
       recallAtK,
       overlap,
@@ -735,6 +854,7 @@ async function runQuery(): Promise<void> {
 
 el<HTMLButtonElement>("addRule").addEventListener("click", () => addRuleRow());
 el<HTMLButtonElement>("search").addEventListener("click", () => runQuery());
+el<HTMLButtonElement>("resetQueryDefaults").addEventListener("click", () => resetQueryDefaults());
 
 // ---------------------------------------------------------------------------
 // Benchmark suite: streaming run, charts, JSON export
@@ -802,6 +922,7 @@ function onBenchProgress(progress: unknown): void {
 el<HTMLButtonElement>("runBench").addEventListener("click", () => {
   void runBenchmark();
 });
+el<HTMLButtonElement>("resetBenchDefaults").addEventListener("click", () => resetBenchDefaults());
 
 async function runBenchmark(): Promise<void> {
   if (!activeTable) {
@@ -838,6 +959,7 @@ async function runBenchmark(): Promise<void> {
       `done — ${report.passes}×${report.queriesPerPass} queries across ${report.configs.length} configuration(s)`,
       "good",
     );
+    persistSearchBench();
     setResults(report);
   } catch (err) {
     setStatus("benchStatus", `benchmark failed: ${String(err)}`, "bad");
@@ -1753,18 +1875,90 @@ bindShortcuts();
 // Init
 // ---------------------------------------------------------------------------
 
+async function seedDemoTable(): Promise<void> {
+  setStatus("schemaStatus", `first run — creating demo Table '${DEMO.name}'`);
+  try {
+    await send("create", {
+      name: DEMO.name,
+      dimension: DEMO.dimension,
+      metric: DEMO.metric,
+    });
+  } catch (e) {
+    setStatus("schemaStatus", `demo create failed: ${String(e)}`, "bad");
+    return;
+  }
+  // Vector-only dataset: no metadata columns so the rule list stays empty
+  // and the Predicate composer works without setup.
+  const rng = mulberry32(DEMO.seed);
+  const centroids: number[][] = [];
+  for (let c = 0; c < DEMO.clusters; c++) {
+    centroids.push(Array.from({ length: DEMO.dimension }, () => rng() * 2 - 1));
+  }
+  const ids: number[] = [];
+  const vectors: number[] = [];
+  for (let i = 0; i < DEMO.count; i++) {
+    const center = centroids[i % DEMO.clusters];
+    for (let d = 0; d < DEMO.dimension; d++) {
+      vectors.push(center[d] + (rng() - 0.5) * 0.5);
+    }
+    ids.push(i);
+  }
+  await ingestChunks({
+    name: DEMO.name,
+    ids,
+    vectors,
+    colNames: [],
+    colTypes: [],
+    values: [],
+  });
+  // Reflect demo defaults in the Dataset editor so "Generate & Ingest"
+  // reproduces this table on demand.
+  el<HTMLSelectElement>("metric").value = DEMO.metric;
+  el<HTMLInputElement>("dimension").value = String(DEMO.dimension);
+  el<HTMLInputElement>("count").value = String(DEMO.count);
+  el<HTMLInputElement>("seed").value = String(DEMO.seed);
+  el<HTMLInputElement>("clusters").value = String(DEMO.clusters);
+  activeTable = DEMO.name;
+  try {
+    localStorage.setItem(STORE_ACTIVE, DEMO.name);
+  } catch {
+    /* non-fatal */
+  }
+  saveConfig();
+  setStatus("schemaStatus", `demo Table '${DEMO.name}' ready (${DEMO.count} vectors)`, "good");
+}
+
 async function init(): Promise<void> {
   loadConfig();
   if (el<HTMLDivElement>("schemaList").children.length === 0) addColumnRow();
   if (el<HTMLDivElement>("ruleList").children.length === 0) addRuleRow();
   syncSource();
+  let savedActive = "";
   try {
-    const saved = localStorage.getItem(STORE_ACTIVE);
-    if (saved) activeTable = saved;
+    savedActive = localStorage.getItem(STORE_ACTIVE) ?? "";
+    if (savedActive) activeTable = savedActive;
   } catch {
     /* non-fatal */
   }
   await refreshTables();
+  // Seed a deterministic demo when either (a) this is a true first run
+  // (no active table ever saved), or (b) the previously used table is the
+  // demo and the live WASM session has no tables yet (e.g. page reload —
+  // the reduced WASM core has no on-disk persistence, so the demo must be
+  // rebuilt from its fixed seed to satisfy the "restore the previously
+  // used table" contract for the seeded case). Custom user tables that
+  // did not survive reload are intentionally not auto-recreated; the
+  // table list is left empty so the user can re-create one.
+  const liveNames = Array.from(el<HTMLSelectElement>("activeTable").options).map(
+    (o) => o.value,
+  );
+  const needsDemoSeed =
+    !savedActive ||
+    (savedActive === DEMO.name && !liveNames.includes(DEMO.name));
+  if (needsDemoSeed) {
+    await seedDemoTable();
+    await refreshTables();
+  }
   if (activeTable) el<HTMLSelectElement>("activeTable").value = activeTable;
   pollHeap();
   window.setInterval(pollHeap, 2000);

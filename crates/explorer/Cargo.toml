@@ -5,8 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-ferrite-db = { path = "../ferrite-db", version = "0.1.0" }
-corpus-gen = { path = "../corpus-gen", version = "0.1.0" }
+ferrite-db = { path = "../ferrite-db", version = "0.1.0-preview.1" }
+corpus-gen = { path = "../corpus-gen", version = "0.1.0-preview.1" }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "signal"] }
 serde = { version = "1", features = ["derive"] }

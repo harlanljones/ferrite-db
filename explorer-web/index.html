@@ -3,8 +3,107 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ferrite DB — Explorer (WASM)</title>
+    <title>Ferrite DB Explorer — In-Browser WASM Vector Database &amp; Benchmark | Harlan Jones</title>
+    <meta
+      name="description"
+      content="In-browser vector search, high-dimensional projection, and storage lifecycle explorer powered by Ferrite DB embedded Rust vector engine compiled to WebAssembly."
+    />
+    <meta name="keywords" content="Ferrite DB, vector database, Rust, WASM, HNSW, ANN vector search, high-dimensional projection, WebAssembly, Harlan Jones" />
+    <meta name="author" content="Harlan Jones" />
+    <meta name="creator" content="Harlan Jones" />
+    <meta name="publisher" content="Harlan Jones" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://ferritedb.harlanljones.com/" />
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Ferrite DB Explorer by Harlan Jones" />
+    <meta property="og:title" content="Ferrite DB Explorer — In-Browser WASM Vector Database" />
+    <meta property="og:description" content="In-browser vector search, high-dimensional projection, and storage lifecycle explorer powered by Ferrite DB." />
+    <meta property="og:url" content="https://ferritedb.harlanljones.com/" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Ferrite DB Explorer — In-Browser WASM Vector Database" />
+    <meta name="twitter:description" content="In-browser vector search and high-dimensional projection powered by Ferrite DB in WebAssembly." />
+
     <link rel="stylesheet" href="/src/style.css" />
+
+    <!-- Schema.org JSON-LD Entity Stacking -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://ferritedb.harlanljones.com/#website",
+          "name": "Ferrite DB Explorer",
+          "url": "https://ferritedb.harlanljones.com/",
+          "description": "In-browser vector database search, high-dimensional projection, and storage lifecycle explorer.",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@type": "WebSite",
+            "@id": "https://www.harlanljones.com/#website",
+            "name": "Harlan Jones Portfolio",
+            "url": "https://www.harlanljones.com/"
+          },
+          "publisher": {
+            "@id": "https://www.harlanljones.com/#person"
+          },
+          "author": {
+            "@id": "https://www.harlanljones.com/#person"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://ferritedb.harlanljones.com/#app",
+          "name": "Ferrite DB Explorer",
+          "alternateName": "Ferrite DB WASM Vector Explorer",
+          "url": "https://ferritedb.harlanljones.com/",
+          "description": "In-browser vector search, high-dimensional projection, and storage lifecycle explorer powered by Ferrite DB embedded Rust vector engine compiled to WebAssembly.",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "All modern browsers",
+          "codeRepository": "https://github.com/harlanljones/ferrite-db",
+          "author": {
+            "@id": "https://www.harlanljones.com/#person"
+          },
+          "creator": {
+            "@id": "https://www.harlanljones.com/#person"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        },
+        {
+          "@type": "Person",
+          "@id": "https://www.harlanljones.com/#person",
+          "name": "Harlan Jones",
+          "alternateName": "Harlan L. Jones",
+          "givenName": "Harlan",
+          "familyName": "Jones",
+          "jobTitle": "Software Developer",
+          "url": "https://www.harlanljones.com/",
+          "sameAs": [
+            "https://github.com/harlanljones",
+            "https://www.linkedin.com/in/harlanljones/"
+          ],
+          "worksFor": {
+            "@type": "Organization",
+            "name": "PrimeIQ.ai",
+            "url": "https://primeiq.ai"
+          },
+          "alumniOf": {
+            "@type": "EducationalOrganization",
+            "name": "Boston University",
+            "url": "https://www.bu.edu"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <main>
@@ -148,6 +247,7 @@
 
         <div class="actions">
           <button id="search">Search + recall@k</button>
+          <button id="resetQueryDefaults" class="ghost">Reset to defaults</button>
         </div>
         <div id="phaseWaterfall" class="waterfall" hidden></div>
         <p id="queryStatus" class="status"></p>
@@ -177,6 +277,7 @@
         </p>
         <div class="actions">
           <button id="runBench">Run benchmark</button>
+          <button id="resetBenchDefaults" class="ghost">Reset to defaults</button>
           <button id="exportBench" class="ghost" disabled>Export JSON</button>
         </div>
         <progress id="benchBar" max="100" value="0"></progress>

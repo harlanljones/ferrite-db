@@ -746,7 +746,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "corpus-gen"
-version = "0.1.0"
+version = "0.1.0-preview.1"
 
 [[package]]
 name = "cpufeatures"
@@ -1761,7 +1761,7 @@ dependencies = [
 
 [[package]]
 name = "explorer"
-version = "0.1.0"
+version = "0.1.0-preview.1"
 dependencies = [
  "axum",
  "corpus-gen",
@@ -1785,7 +1785,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "ferrite-db"
-version = "0.1.0"
+version = "0.1.0-preview.1"
 dependencies = [
  "futures",
  "lancedb",
@@ -1799,7 +1799,7 @@ dependencies = [
 
 [[package]]
 name = "ferrite-wasm"
-version = "0.1.0"
+version = "0.1.0-preview.1"
 dependencies = [
  "ferrite-db",
  "js-sys",
@@ -2083,7 +2083,7 @@ dependencies = [
 
 [[package]]
 name = "harness"
-version = "0.1.0"
+version = "0.1.0-preview.1"
 dependencies = [
  "corpus-gen",
  "ferrite-db",

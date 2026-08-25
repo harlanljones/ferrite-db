@@ -18,11 +18,13 @@ Ferrite DB is a low-latency vector search library embedded directly into your Ru
 
 ### Key Features
 
-- **Sub-millisecond latency** — search without the overhead of serialization or IPC
+- **Low-latency search** — target sub-millisecond latency; unmeasured at contract scale
+  (see [ROADMAP §5](ROADMAP.md) and [docs/baselines/](docs/baselines/))
 - **Approximate nearest-neighbor (ANN)** — trade perfect recall for speed; control the tradeoff
 - **Metadata filtering** — predicate-based result refinement evaluated during index traversal
 - **Zero operational complexity** — no separate database to deploy or manage
-- **Production-ready** — designed for predictable, low-latency workloads
+- **Preview status** — design and core correctness complete; sign-off gates G2/G3/G4 (FDB-G2,
+  FDB-G3, FDB-G4) pending before a v1.0 release claim
 
 ---
 
@@ -34,7 +36,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ferrite-db = "0.1"
+ferrite-db = "0.1.0-preview"
 ```
 
 ### Basic Usage
@@ -142,7 +144,12 @@ Contributions welcome. Before starting, please review:
 
 ## Status
 
-Ferrite DB is under active development. See [`ROADMAP.md`](ROADMAP.md) for current priorities and milestones.
+Ferrite DB is under active development in **preview** status. Core correctness, the write path,
+scan-only search, the index ladder, compaction, admission control, and error hardening are
+complete. The SLO targets in [ROADMAP §2](ROADMAP.md) are not yet certifiable at contract scale:
+the tuning campaign (FDB-070) escalated to the G3 frontier review, and the final signs-off
+(G2 acceptance, G3 recall direction, G4 allocator ratification) are tracked as FDB-G2, FDB-G3,
+and FDB-G4. See [ROADMAP.md](ROADMAP.md) for current priorities and milestones.
 
 ---
 
