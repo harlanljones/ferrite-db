@@ -11,6 +11,16 @@
 
 use std::io::Write;
 
+/// Realistic-clustered accuracy-corpus generator (ROADMAP FDB-024, ADR 0009).
+/// Re-exports from the sibling `clustered` module; the uniform and clustered
+/// generators live in separate source files because FDB-020 and FDB-024
+/// co-own this crate (AGENTS.md §7) and their concerns are independent.
+pub mod clustered;
+
+// ---------------------------------------------------------------------------
+// Uniform corpus (FDB-020, ADR 0006). The original generator stays here.
+// ---------------------------------------------------------------------------
+
 /// The distance function the ground truth is computed against. Mirrors the
 /// Table [`Metric`](ferrite_db::table::Metric) vocabulary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

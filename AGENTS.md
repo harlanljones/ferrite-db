@@ -104,6 +104,13 @@ cargo fmt --check
 
 CI (ROADMAP FDB-003) enforces the same set. Warnings are errors; formatting drift fails.
 
+**Known dev-machine issue (2026-08-25):** `/tmp` on this machine is a 24 GB tmpfs with
+`usrquota`; doc-test linking (LanceDB-heavy) can transiently exceed it and fail with
+`LLVM ERROR: IO failure on output stream: Disk quota exceeded`. This is environmental, not a
+code regression. Workaround: point `TMPDIR` at disk-backed storage before running the gate —
+`mkdir -p target/tmpdir && TMPDIR=$PWD/target/tmpdir cargo test`. Do not record such failures
+as gate failures without checking for this first.
+
 ## 6. Quality gates (apply to every change)
 
 1. **No panics across the public API boundary.** Public fallible operations return

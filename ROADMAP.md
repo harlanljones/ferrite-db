@@ -126,9 +126,20 @@ recorded reproducibility-variance bound in `docs/baselines/README.md`; owners as
 | Filtered recall@10 @ selectivity 0.01 | **1.0000** vs filtered oracle (exact; report-only until G2) | TBD pending first baseline (set at G2) | as above | performance (FDB-022) | as above |
 | Filtered recall@10 @ selectivity 0.001 | **1.0000** vs filtered oracle (exact; report-only until G2) | TBD pending first baseline (set at G2) | as above | performance (FDB-022) | as above |
 | Peak RSS under the benchmark contract | **≈ 761 MB** unfiltered pass / ≈ 481–508 MB filtered @ declared scale (variance bound ±1%) [docs/baselines/artifacts/] | target set at G2-entry with the environment spec — no basis to invent one today | harness captures process RSS over the standard run | performance (FDB-022); matters: first-order purchase criterion for an embedded library | every merged harness run |
+| FDB-024 clustered corpus, recall@10 unfiltered (evidence line for G3 re-check) | **1.0000** vs exact-search oracle (variance bound: exact equality; 3/3 runs) [docs/baselines/artifacts/fdb024-clustered-run-{1,2,3}.json] | n/a at verifiable scale; recall target ≥ 96.5% applies to the M3 ladder re-certification on the clustered corpus at contract scale (FDB-023 hardware) | FDB-024 evidence runner: clustered-corpus generator (ADR 0009, `--mode clustered`) loaded through the public write path, scanned exhaustively, recalled against the generator's exact ground truth | benchmarks (FDB-024); matters: G3 frontier re-evaluation — clustered corpus exposes the headroom the FDB-070 ceiling on the uniform fixture could not | re-run whenever the ladder re-certifies on the clustered corpus |
 
 Ingest throughput (R4 monitor): median ≈ 1.15 M vectors/s at declared scale (per-tier medians
 0.97–1.17 M/s; variance bound ±50%), reported in every artifact under `ingest`.
+
+FDB-024 (G3 evidence, 2026-08-25) added a separate row above for the clustered corpus:
+the realistic-clustered accuracy generator produced a 10 000 × 512-d fixture with
+byte-identical regeneration proven once, and the FDB-021 harness re-run against it
+recovers the exact-search oracle (recall@10 = 1.0000 across 3 runs) on the verifiable
+scale available on this dev machine. The §2 recall target (≥ 96.5%) is **not** evaluated
+here: the FDB-021 path in this dispatch is scan-only, so its recall is oracle-correct by
+construction; the meaningful G3 measurement is the M3 ladder frontier on the clustered
+corpus at contract scale, which awaits FDB-023 hardware. Report:
+`docs/baselines/fdb024-clustered-report.md`; artifacts `fdb024-clustered-run-*.json`.
 
 SIFT1M comparability sanity runs (secondary, never gating) are reported alongside but get no
 table row until G2 decides whether one is warranted.
@@ -400,6 +411,22 @@ tools, harness, and the audit/test tree own their future directories.
 - Exit criterion: byte-identical regeneration proven once; the FDB-070 recall ceiling (report-only
   ≈ 0.56 on the uniform fixture) is re-measured on the clustered corpus; latest recall/latency
   row recorded as evidence in §5 for G3/FDB-G3 re-check
+- Outcome (2026-08-25, FDB-024): clustered generator shipped as `corpus-gen --mode clustered`
+  (`crates/corpus-gen/src/clustered.rs`); byte-identical regeneration proven on a 10 000 × 512-d
+  fixture (5/5 fixture files bit-for-bit identical across reruns; manifest records
+  `distribution="gaussian_mixture"`, `num_clusters`, `cluster_stddev`, and the four
+  selectivity tiers). Structural correctness asserted by the
+  `clustered_nearest_neighbour_is_in_same_cluster` test (every top-`k` hit in a tight-cluster
+  fixture is in the query's cluster — the property uniform data lacks). Harness re-run
+  through the public write path produced recall@10 = 1.0000 across 3/3 runs at verifiable
+  scale (10 000 × 512-d, p50 27.5–28.6 ms, p99 30.6–34.6 ms; artifacts
+  `fdb024-clustered-run-{1,2,3}.json`; report `docs/baselines/fdb024-clustered-report.md`).
+  Path-correctness verdict established; the recall-vs-knob frontier on the clustered corpus
+  at contract scale awaits FDB-023 hardware and M3 ladder re-certification. FRC2/FRM2/FRQ2/FRG2
+  fixture format keeps the clustered corpus disjoint from the FDB-020 uniform corpus
+  (FRC1/...); the FDB-021 harness's main CLI still loads the uniform family unchanged, and
+  `harness::bin::clustered_demo` consumes the clustered family through the same
+  `harness::run_loaded` measurement loop.
 
 ### Wave 5 — index ladder (serial chain)
 
